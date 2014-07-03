@@ -1,3 +1,9 @@
+// Multi-Objective Multi-Agent Rover Domain.
+// For use with Difference Rewards in SPEA2 and NSGA-II
+// Core code: Logan Yliniemi, 2012.
+// NSGAheader, SPEAheader, NNLIBv2, Logan Yliniemi, 2013.
+// Alterations: Logan Yliniemi and Drew T. Wilson, July 2014
+
 #include <iostream>
 #include <math.h>
 #include <vector>
