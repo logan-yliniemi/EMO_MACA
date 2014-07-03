@@ -142,8 +142,10 @@ public:
 
 
 	int find_kth_closest_rover(int, rover*);
+        int find_kth_closest_rover_old(int, rover*);
 	double find_dist_to_rover(int, rover*);
 	int find_kth_closest_rover_not_i(int, int, rover*);
+        int find_kth_closest_rover_not_i_old(int, int, rover*);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -168,6 +170,62 @@ void landmark::reset()
 }
 
 int landmark::find_kth_closest_rover(int k, rover* fidos)
+{
+    int closest;
+    double closest_distance;
+    vector<double> distances;
+    for(int b=0; b<num_ROVERS; b++){
+        double delx, dely;
+        delx = fidos[b].x - x;
+	dely = fidos[b].y - y;
+        double dis = sqrt(delx*delx + dely*dely);
+        distances.push_back(dis);
+    }
+    sort(distances.begin(),distances.end());
+    closest_distance=distances.at(k);
+    for(int b=0; b<num_ROVERS; b++){
+        double delx, dely;
+        delx = fidos[b].x - x;
+	dely = fidos[b].y - y;
+        double dis = sqrt(delx*delx + dely*dely);
+        if(dis==closest_distance){
+            closest=b;
+            break;
+        }
+    }
+    return closest;
+}
+
+int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
+    int closest;
+    double closest_distance;
+    vector<double> distances;
+    for(int b=0; b<num_ROVERS; b++){
+        if(b==i){continue;}
+        double delx, dely;
+        delx = fidos[b].x - x;
+	dely = fidos[b].y - y;
+        double dis = sqrt(delx*delx + dely*dely);
+        distances.push_back(dis);
+    }
+    sort(distances.begin(),distances.end());
+    closest_distance=distances.at(k);
+    for(int b=0; b<num_ROVERS; b++){
+        if(b==i){continue;}
+        double delx, dely;
+        delx = fidos[b].x - x;
+	dely = fidos[b].y - y;
+        double dis = sqrt(delx*delx + dely*dely);
+        if(dis==closest_distance){
+            closest=b;
+            break;
+        }
+    }
+    return closest;
+}
+
+
+int landmark::find_kth_closest_rover_old(int k, rover* fidos)
 {
 	//cout << ">>>>>>> kthclosestrover" << endl;
 	int dontcount[k];
@@ -206,7 +264,7 @@ double landmark::find_dist_to_rover(int rvr, rover* fidos)
 	return dis;
 }
 
-int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos)
+int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
 {
 	int dontcount[k + 1];
 	int closest;
