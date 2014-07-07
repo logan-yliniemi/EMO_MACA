@@ -22,7 +22,7 @@
 #define num_ROVERS 3
 
 #define TIMESTEPS 100
-#define GENERATIONS 1000
+#define GENERATIONS 1
 
 ///NEURAL NETWORK PARAMETERS (IN NN HEADER)
 //#define INPUTS 10
@@ -161,7 +161,7 @@ void landmark::create(double xpos, double ypos, double red, double blue)
 	start_red = red_value;
 	start_blue = blue_value;
 	min_obs_distance = XMAX / 100; /// LYLY ADJUSTABLE
-	max_obs_distance = XMAX / 10; /// LYLY ADJUSTABLE
+	max_obs_distance = XMAX / 1; /// LYLY ADJUSTABLE
 }
 
 void landmark::reset()
@@ -366,48 +366,12 @@ int rover::place(double xspot, double yspot, double head)
 
 int rover::basic_sensor(double roverx, double rovery, double rover_heading, double tarx, double tary)
 {
-	/// Create a square and determine whether or not the rover falls into this square.
-	//double roverx;
-	//double rovery;
-	//double rover_heading;
-
-	///TEMPORARY
-	//roverx=10;
-	//rovery=10;
-	//rover_heading=0;
-	///TEMPORARY
-
-	//double rover_right=rover_heading+pi/2;
-	//double rover_left=rover_heading+3*pi/2;
-	//double rover_reverse=rover_heading+pi;
-	//angle_resolve(rover_right);
-	//angle_resolve(rover_left);
-	//angle_resolve(rover_reverse);
-
-	//double tarx;
-	//double tary;
-
-	///TEMPORARY
-	//tarx=20;
-	//tary=15;
-	///TEMPORARY
-
-	/// start from rover x,y. If thing is to the right of rover_heading, then do this case.
-	// (roverx,rovery,roverheading) describes the line.
-	// (tarx,tary) describes our target.
-	// for the thing to be to the right of the rover ray, if we have a positive angle, we should first find the distance between the two.
-
-	//double dist;
+	
 	double dx;
 	double dy;
-	//dx=roverx-tarx;
-	//dy=rovery-tary;
 
 	dx = tarx - roverx;
 	dy = tary - rovery;
-
-	//dist=dx*dx+dy*dy;
-	//dist=sqrt(dist);
 
 	// heading to target with respect to robot frame
 	double tarheading;
@@ -451,41 +415,11 @@ int rover::basic_sensor(double roverx, double rovery, double rover_heading, doub
 		return 3;
 	}
 
-	//if(del_heading>0 && del_heading<pi/2)
-	//{
-	//    return 3;
-	//    /// in sector 0;
-	//}
-	//if(del_heading>pi/2 && del_heading<pi)
-	//{
-	//    return 1;
-	//    /// in sector 1;
-	//}
-	//if(del_heading>pi && del_heading<3*pi/2)
-	//{
-	//    return 2;
-	//    /// in sector 2;
-	//}
-	//if(del_heading>3*pi/2 && del_heading<2*pi)
-	//{
-	//    return 3;
-	//    /// in sector 3;
-	//}
-
 	else
 	{
 		cout << "problems in basic_sensor;" << endl;
 		return 66;
 	}
-
-	/// if thing is to the front of rover_right, then it is case 0.
-	/// if thing is to the back of rover_right, then it is case 1.
-
-	/// if thing is to the left of rover_heading, then do this case.
-	/// if thing is to the front of rover_left, then it is case 3.
-	/// if thing is to the back of rover_left, then it is case 2.
-
-	/// If not applied to any quadrant, then return an error.
 }
 
 double rover::strength_sensor(double value, double tarx, double tary)
@@ -589,7 +523,7 @@ void rover::full_rover_sensor(rover* fidos)
 	}
 }
 
-int rover_sensor_testing(){
+void rover_sensor_testing(){
     // Stuff for testing
 
 	rover testrover;
@@ -620,7 +554,7 @@ int main()
 {
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
-        rover_sensor_testing();
+//        rover_sensor_testing();
 	
 
 	///* commented out for testing
@@ -813,6 +747,7 @@ int main()
 				for (int ev = 0; ev<EVOPOP; ev++)
 				{
 					NN[r][selected[r][ev]].fitness += fidos[r].local_red + fidos[r].local_blue;
+					cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 				}
 			}
 
