@@ -142,10 +142,8 @@ public:
 
 
 	int find_kth_closest_rover(int, rover*);
-        int find_kth_closest_rover_old(int, rover*);
 	double find_dist_to_rover(int, rover*);
 	int find_kth_closest_rover_not_i(int, int, rover*);
-        int find_kth_closest_rover_not_i_old(int, int, rover*);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -171,7 +169,7 @@ void landmark::reset()
 
 int landmark::find_kth_closest_rover(int k, rover* fidos)
 {
-    int closest;
+    int kclosest;
     double closest_distance;
     vector<double> distances;
     for(int b=0; b<num_ROVERS; b++){
@@ -181,77 +179,42 @@ int landmark::find_kth_closest_rover(int k, rover* fidos)
         double dis = sqrt(delx*delx + dely*dely);
         distances.push_back(dis);
     }
+    vector<double> distances_unsorted = distances;
+    
     sort(distances.begin(),distances.end());
     closest_distance=distances.at(k);
     for(int b=0; b<num_ROVERS; b++){
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        if(dis==closest_distance){
-            closest=b;
+        if(distances_unsorted.at(b)==closest_distance){
+            kclosest=b;
             break;
         }
     }
-    return closest;
+    return kclosest;
 }
 
 int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
-    int closest;
+    int kclosest;
     double closest_distance;
     vector<double> distances;
     for(int b=0; b<num_ROVERS; b++){
-        if(b==i){continue;}
+        if(b==i){distances.push_back(XMAX*2+YMAX*2); continue;} /// Infeasible long distance.
         double delx, dely;
         delx = fidos[b].x - x;
 	dely = fidos[b].y - y;
         double dis = sqrt(delx*delx + dely*dely);
         distances.push_back(dis);
     }
+    vector<double> distances_unsorted = distances;
+    
     sort(distances.begin(),distances.end());
     closest_distance=distances.at(k);
     for(int b=0; b<num_ROVERS; b++){
-        if(b==i){continue;}
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        if(dis==closest_distance){
-            closest=b;
+        if(distances_unsorted.at(b)==closest_distance){
+            kclosest=b;
             break;
         }
     }
-    return closest;
-}
-
-
-int landmark::find_kth_closest_rover_old(int k, rover* fidos)
-{
-	//cout << ">>>>>>> kthclosestrover" << endl;
-	int dontcount[k];
-	//cout << "check?" << endl;
-	int closest;
-	double mindist;
-	for (int a = 0; a<k; a++)
-	{
-		//cout << "a: " << a << endl;
-		mindist = 9999999;
-		for (int b = 0; b<num_ROVERS; b++)
-		{
-			double delx, dely;
-			delx = fidos[b].x - x;
-			dely = fidos[b].y - y;
-			double dis = sqrt(delx*delx + dely*dely);
-			//cout << "midist " << mindist << "dist" << dis << endl;
-			mindist = fmin(mindist, dis);
-			if (dis == mindist)
-			{
-				closest = b;
-			}
-		}
-		dontcount[a] = closest;
-	}
-	return closest;
+    return kclosest;
 }
 
 double landmark::find_dist_to_rover(int rvr, rover* fidos)
@@ -262,36 +225,6 @@ double landmark::find_dist_to_rover(int rvr, rover* fidos)
 	double dis = sqrt(delx*delx + dely*dely);
 
 	return dis;
-}
-
-int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
-{
-	int dontcount[k + 1];
-	int closest;
-	double mindist;
-	for (int a = 0; a<k; a++)
-	{
-		if (a == i)
-		{
-			continue;
-		}
-		mindist = 9999999;
-		for (int b = 0; b<num_ROVERS; b++)
-		{
-			double delx, dely;
-			delx = fidos[b].x - x;
-			dely = fidos[b].y - y;
-			double dis = sqrt(delx*delx + dely*dely);
-			mindist = fmin(mindist, dis);
-			if (dis == mindist)
-			{
-				closest = b;
-			}
-		}
-		dontcount[a] = closest;
-	}
-
-	return closest;
 }
 
 double landmark::calc_red_observation_value(double d)
@@ -363,6 +296,9 @@ int rover::place(double xspot, double yspot, double head)
 
 int rover::basic_sensor(double roverx, double rovery, double rover_heading, double tarx, double tary)
 {
+        /// @DW: Ensure that sensor rotates with rover.
+        /// @DW: Not touching any of the comments 7/7 to not break it before testing. Should be cleaned up right after.
+    
 	/// Create a square and determine whether or not the rover falls into this square.
 	//double roverx;
 	//double rovery;
@@ -477,7 +413,7 @@ int rover::basic_sensor(double roverx, double rovery, double rover_heading, doub
 
 	/// if thing is to the front of rover_right, then it is case 0.
 	/// if thing is to the back of rover_right, then it is case 1.
-
+        
 	/// if thing is to the left of rover_heading, then do this case.
 	/// if thing is to the front of rover_left, then it is case 3.
 	/// if thing is to the back of rover_left, then it is case 2.
@@ -644,6 +580,7 @@ int main()
 	cout << "Preliminaries completed" << endl;
 	for (int gen = 0; gen<GENERATIONS; gen++)
 	{
+            /// TODO: Coevolution
 		cout << "Beginning Generation " << gen << endl;
 		for (int ev = 0; ev<EVOPOP; ev++)
 		{
@@ -781,7 +718,8 @@ int main()
 					NN[r][selected[r][ev]].fitness += fidos[r].local_red + fidos[r].local_blue;
 				}
 			}
-
+                        
+                        /// END EPISODE
 		}
 
 		cout << "This generation's best local fitness is: " << NN[0][selected[0][0]].fitness << endl;
@@ -800,6 +738,7 @@ int main()
 			}
 		}
 
+                /// END GENERATION
 	}
 
 	//*/
