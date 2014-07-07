@@ -9,6 +9,7 @@
 #include <vector>
 #include "NNLIBv2.h"
 #include <ctime>
+#include <algorithm>
 
 #define pi 3.141529
 #define QUADRANTS 4
@@ -225,8 +226,8 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
 }
 
 
-int landmark::find_kth_closest_rover_old(int k, rover* fidos)
-{
+/*int landmark::find_kth_closest_rover_old(int k, rover* fidos)
+//{
 	//cout << ">>>>>>> kthclosestrover" << endl;
 	int dontcount[k];
 	//cout << "check?" << endl;
@@ -253,6 +254,7 @@ int landmark::find_kth_closest_rover_old(int k, rover* fidos)
 	}
 	return closest;
 }
+*/
 
 double landmark::find_dist_to_rover(int rvr, rover* fidos)
 {
@@ -264,7 +266,7 @@ double landmark::find_dist_to_rover(int rvr, rover* fidos)
 	return dis;
 }
 
-int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
+/*int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
 {
 	int dontcount[k + 1];
 	int closest;
@@ -293,6 +295,7 @@ int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
 
 	return closest;
 }
+*/
 
 double landmark::calc_red_observation_value(double d)
 {
@@ -336,7 +339,7 @@ void rover::move()
 	y += ydot;
 	xresolve(x);
 	yresolve(y);
-	heading = atan2(xdot, ydot);
+	heading = atan2(ydot, xdot);
 }
 
 int rover::place(double xspot, double yspot, double head)
@@ -408,7 +411,7 @@ int rover::basic_sensor(double roverx, double rovery, double rover_heading, doub
 
 	// heading to target with respect to robot frame
 	double tarheading;
-	tarheading = atan2(dx, dy);
+	tarheading = atan2(dy, dx);
 
 	double del_heading;
 	del_heading = tarheading - rover_heading;
@@ -491,7 +494,7 @@ double rover::strength_sensor(double value, double tarx, double tary)
 
 	double delta = find_distance(x, y, tarx, tary);
 
-	double tarheading = atan2((x - tarx), (y - tary));
+	double tarheading = atan2((y - tary), (x - tarx));
 
 	double del_heading;
 	del_heading = tarheading - heading;
@@ -591,6 +594,32 @@ int main()
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
 
+// Stuff for testing
+
+	rover testrover;
+	landmark testlandmark;
+
+	testrover.reset();
+	testlandmark.reset();
+
+	testrover.place(50, 50, 0);
+	testlandmark.create(40, 40, 10, 10);
+
+	double turning = 0;
+	int q;
+	
+	///*
+	while (turning < 2 * pi) {
+		q = testrover.basic_sensor(testrover.x, testrover.y, testrover.heading, testlandmark.x, testlandmark.y);
+		cout << "Landmark is in quadrant " << q << " with respect to the rover." << endl;
+		testrover.heading += pi / 8;
+		turning = testrover.heading;
+	}
+	//*/
+
+// End testing
+
+///* commented out for testing
 	landmark POIs[num_POI];
 
 	/// x, y, r, b;
@@ -694,6 +723,7 @@ int main()
 				/// SENSE
 				//cout << "Sense!" << endl;
 				// for all rovers
+///*	commented out for testing			
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "sensing " << r << endl;
@@ -803,5 +833,6 @@ int main()
 	}
 
 	//*/
+
 	return 0;
 }
