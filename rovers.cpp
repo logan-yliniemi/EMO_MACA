@@ -589,12 +589,8 @@ void rover::full_rover_sensor(rover* fidos)
 	}
 }
 
-int main()
-{
-	cout << "Hello world!" << endl;
-	srand(time(NULL));
-
-	// Stuff for testing
+int rover_sensor_testing(){
+    // Stuff for testing
 
 	rover testrover;
 	landmark testlandmark;
@@ -618,6 +614,14 @@ int main()
 	//*/
 
 	// End testing
+}
+
+int main()
+{
+	cout << "Hello world!" << endl;
+	srand(time(NULL));
+        rover_sensor_testing();
+	
 
 	///* commented out for testing
 	landmark POIs[num_POI];
