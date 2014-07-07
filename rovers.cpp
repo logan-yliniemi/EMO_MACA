@@ -143,10 +143,10 @@ public:
 
 
 	int find_kth_closest_rover(int, rover*);
-        int find_kth_closest_rover_old(int, rover*);
+	int find_kth_closest_rover_old(int, rover*);
 	double find_dist_to_rover(int, rover*);
 	int find_kth_closest_rover_not_i(int, int, rover*);
-        int find_kth_closest_rover_not_i_old(int, int, rover*);
+	int find_kth_closest_rover_not_i_old(int, int, rover*);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -172,87 +172,87 @@ void landmark::reset()
 
 int landmark::find_kth_closest_rover(int k, rover* fidos)
 {
-    int closest;
-    double closest_distance;
-    vector<double> distances;
-    for(int b=0; b<num_ROVERS; b++){
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        distances.push_back(dis);
-    }
-    sort(distances.begin(),distances.end());
-    closest_distance=distances.at(k);
-    for(int b=0; b<num_ROVERS; b++){
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        if(dis==closest_distance){
-            closest=b;
-            break;
-        }
-    }
-    return closest;
+	int closest;
+	double closest_distance;
+	vector<double> distances;
+	for (int b = 0; b<num_ROVERS; b++){
+		double delx, dely;
+		delx = fidos[b].x - x;
+		dely = fidos[b].y - y;
+		double dis = sqrt(delx*delx + dely*dely);
+		distances.push_back(dis);
+	}
+	sort(distances.begin(), distances.end());
+	closest_distance = distances.at(k);
+	for (int b = 0; b<num_ROVERS; b++){
+		double delx, dely;
+		delx = fidos[b].x - x;
+		dely = fidos[b].y - y;
+		double dis = sqrt(delx*delx + dely*dely);
+		if (dis == closest_distance){
+			closest = b;
+			break;
+		}
+	}
+	return closest;
 }
 
 int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
-    int closest;
-    double closest_distance;
-    vector<double> distances;
-    for(int b=0; b<num_ROVERS; b++){
-        if(b==i){continue;}
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        distances.push_back(dis);
-    }
-    sort(distances.begin(),distances.end());
-    closest_distance=distances.at(k);
-    for(int b=0; b<num_ROVERS; b++){
-        if(b==i){continue;}
-        double delx, dely;
-        delx = fidos[b].x - x;
-	dely = fidos[b].y - y;
-        double dis = sqrt(delx*delx + dely*dely);
-        if(dis==closest_distance){
-            closest=b;
-            break;
-        }
-    }
-    return closest;
+	int closest;
+	double closest_distance;
+	vector<double> distances;
+	for (int b = 0; b<num_ROVERS; b++){
+		if (b == i){ continue; }
+		double delx, dely;
+		delx = fidos[b].x - x;
+		dely = fidos[b].y - y;
+		double dis = sqrt(delx*delx + dely*dely);
+		distances.push_back(dis);
+	}
+	sort(distances.begin(), distances.end());
+	closest_distance = distances.at(k);
+	for (int b = 0; b<num_ROVERS; b++){
+		if (b == i){ continue; }
+		double delx, dely;
+		delx = fidos[b].x - x;
+		dely = fidos[b].y - y;
+		double dis = sqrt(delx*delx + dely*dely);
+		if (dis == closest_distance){
+			closest = b;
+			break;
+		}
+	}
+	return closest;
 }
 
 
 /*int landmark::find_kth_closest_rover_old(int k, rover* fidos)
 //{
-	//cout << ">>>>>>> kthclosestrover" << endl;
-	int dontcount[k];
-	//cout << "check?" << endl;
-	int closest;
-	double mindist;
-	for (int a = 0; a<k; a++)
-	{
-		//cout << "a: " << a << endl;
-		mindist = 9999999;
-		for (int b = 0; b<num_ROVERS; b++)
-		{
-			double delx, dely;
-			delx = fidos[b].x - x;
-			dely = fidos[b].y - y;
-			double dis = sqrt(delx*delx + dely*dely);
-			//cout << "midist " << mindist << "dist" << dis << endl;
-			mindist = fmin(mindist, dis);
-			if (dis == mindist)
-			{
-				closest = b;
-			}
-		}
-		dontcount[a] = closest;
-	}
-	return closest;
+//cout << ">>>>>>> kthclosestrover" << endl;
+int dontcount[k];
+//cout << "check?" << endl;
+int closest;
+double mindist;
+for (int a = 0; a<k; a++)
+{
+//cout << "a: " << a << endl;
+mindist = 9999999;
+for (int b = 0; b<num_ROVERS; b++)
+{
+double delx, dely;
+delx = fidos[b].x - x;
+dely = fidos[b].y - y;
+double dis = sqrt(delx*delx + dely*dely);
+//cout << "midist " << mindist << "dist" << dis << endl;
+mindist = fmin(mindist, dis);
+if (dis == mindist)
+{
+closest = b;
+}
+}
+dontcount[a] = closest;
+}
+return closest;
 }
 */
 
@@ -268,32 +268,32 @@ double landmark::find_dist_to_rover(int rvr, rover* fidos)
 
 /*int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
 {
-	int dontcount[k + 1];
-	int closest;
-	double mindist;
-	for (int a = 0; a<k; a++)
-	{
-		if (a == i)
-		{
-			continue;
-		}
-		mindist = 9999999;
-		for (int b = 0; b<num_ROVERS; b++)
-		{
-			double delx, dely;
-			delx = fidos[b].x - x;
-			dely = fidos[b].y - y;
-			double dis = sqrt(delx*delx + dely*dely);
-			mindist = fmin(mindist, dis);
-			if (dis == mindist)
-			{
-				closest = b;
-			}
-		}
-		dontcount[a] = closest;
-	}
+int dontcount[k + 1];
+int closest;
+double mindist;
+for (int a = 0; a<k; a++)
+{
+if (a == i)
+{
+continue;
+}
+mindist = 9999999;
+for (int b = 0; b<num_ROVERS; b++)
+{
+double delx, dely;
+delx = fidos[b].x - x;
+dely = fidos[b].y - y;
+double dis = sqrt(delx*delx + dely*dely);
+mindist = fmin(mindist, dis);
+if (dis == mindist)
+{
+closest = b;
+}
+}
+dontcount[a] = closest;
+}
 
-	return closest;
+return closest;
 }
 */
 
@@ -594,7 +594,7 @@ int main()
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
 
-// Stuff for testing
+	// Stuff for testing
 
 	rover testrover;
 	landmark testlandmark;
@@ -607,7 +607,7 @@ int main()
 
 	double turning = 0;
 	int q;
-	
+
 	///*
 	while (turning < 2 * pi) {
 		q = testrover.basic_sensor(testrover.x, testrover.y, testrover.heading, testlandmark.x, testlandmark.y);
@@ -617,9 +617,9 @@ int main()
 	}
 	//*/
 
-// End testing
+	// End testing
 
-///* commented out for testing
+	///* commented out for testing
 	landmark POIs[num_POI];
 
 	/// x, y, r, b;
@@ -723,7 +723,7 @@ int main()
 				/// SENSE
 				//cout << "Sense!" << endl;
 				// for all rovers
-///*	commented out for testing			
+				///*	commented out for testing			
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "sensing " << r << endl;
