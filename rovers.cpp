@@ -496,6 +496,11 @@ FILE* open_files(){
 vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r);
 void expand_population(vector<neural_network>* pNN, int r, vector<double>);
 
+void print_to_file(FILE * pFILE, double x1, double y1, double x2, double y2, double x3, double y3)
+{
+	fprintf(pFILE, "%.2f %.2f %.2f %.2f %.2f %.2f\n", x1, y1, x2, y2, x3, y3);
+}
+
 int main()
 {
 	cout << "Hello world!" << endl;
@@ -503,6 +508,8 @@ int main()
 //        rover_sensor_testing();
         FILE* pFILE = open_files();
 	
+		FILE * dpFILE;
+		dpFILE = fopen("rover_locations.txt", "w");
 
 	///* commented out for testing
 	landmark POIs[num_POI];
@@ -701,6 +708,9 @@ int main()
 
 				/// ACT
 				//cout << "ACT!" << endl;
+
+				print_to_file(dpFILE, fidos[0].x, fidos[0].y, fidos[1].x, fidos[1].y, fidos[2].x, fidos[2].y);
+
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "acting " << r << endl;
