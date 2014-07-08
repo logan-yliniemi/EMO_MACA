@@ -7,7 +7,7 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
-#include "NNLIBv2.h"
+#include "NNV.h"
 #include <ctime>
 #include <algorithm>
 
@@ -19,16 +19,16 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 3
+#define num_ROVERS 1
 
-#define TIMESTEPS 100
-#define GENERATIONS 100
+#define TIMESTEPS 10
+#define GENERATIONS 1000
 
-///NEURAL NETWORK PARAMETERS (IN NN HEADER)
-//#define INPUTS 10
-//#define HIDDEN 5
-//#define OUTPUTS 1
-//#define EVOPOP 10
+// NEURAL NETWORK PARAMETERS
+#define INPUTS 8
+#define HIDDEN 10
+#define OUTPUTS 2
+#define EVOPOP 100
 
 using namespace std;
 
@@ -488,11 +488,20 @@ void rover_sensor_testing(){
 	// End testing
 }
 
+FILE* open_files(){
+    FILE* pFILE = fopen ("Testing.txt","w");
+    return pFILE;
+}
+
+vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r);
+void expand_population(vector<neural_network>* pNN, int r, vector<double>);
+
 int main()
 {
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
 //        rover_sensor_testing();
+        FILE* pFILE = open_files();
 	
 
 	///* commented out for testing
@@ -504,35 +513,86 @@ int main()
 	POIs[2].create(90, 10, 100, 0);
 	POIs[3].create(90, 90, 100, 100);
 
-	neural NN[num_ROVERS][EVOPOP];
-	vector<double> mini, maxi, mino, maxo;
-	for (int i = 0; i<INPUTS; i++)
+        vector< vector<neural_network> > VVNN;
+        vector< neural_network > VNN; 
+        neural_network NN;
+        
+        VVNN.clear();
+        for (int r = 0; r<num_ROVERS; r++)
 	{
-		mini.push_back(0);
-		if (i<4)
-		{
-			maxi.push_back(num_ROVERS);    /// TODO Generalize
-		}
-		if (i >= 4)
-		{
-			maxi.push_back(500);    /// TODO Generalize
-		}
-	}
-	for (int i = 0; i<OUTPUTS; i++)
+            VNN.clear();
+        for (int i = 0; i<EVOPOP; i++)
 	{
-		mino.push_back(0);
-		maxo.push_back(XMAX / 10);
-	}
+            NN.clean();
+            NN.setup(INPUTS,HIDDEN,OUTPUTS);
+            for(int in=0; in<INPUTS; in++){
+                if(in<4){
+                    NN.take_in_min_max(0,num_ROVERS);
+                }
+                if(in>=4){
+                    NN.take_in_min_max(0,500);
+                }
+            }
+            for (int out = 0; out<OUTPUTS; out++){
+                NN.take_out_min_max(-XMAX / 10,XMAX / 10);
+            }
+            VNN.push_back(NN);
+        }
+        VVNN.push_back(VNN);
+        }
+        
+//	//neural_network NN[num_ROVERS][EVOPOP];
+//	//vector<double> mini, maxi, mino, maxo;
+//	for (int in = 0; in<INPUTS; in++)
+//	{
+//            for (int r = 0; r<num_ROVERS; r++)
+//	{
+//                for (int i = 0; i<EVOPOP; i++)
+//		{
+//                    if(in<4){
+//                    VVNN.at(r).at(i).setup(INPUTS,HIDDEN,OUTPUTS);
+//                    VVNN.at(r).at(i).take_in_min_max(0,num_ROVERS);
+//                    }
+//                    if(in>=4){
+//                    VVNN.at(r).at(i).setup(INPUTS,HIDDEN,OUTPUTS);
+//                    VVNN.at(r).at(i).take_in_min_max(0,500);
+//                    }
+//                }
+//        }
+//		//mini.push_back(0);
+//		//if (i<4)
+//		//{
+//                    
+//		//	maxi.push_back(num_ROVERS);    /// TODO Generalize
+//		//}
+//	//	if (i >= 4)
+//	//	{
+//	//		maxi.push_back(500);    /// TODO Generalize
+////		}
+//	}
+//	for (int out = 0; out<OUTPUTS; out++)
+//	{
+//            for (int r = 0; r<num_ROVERS; r++)
+//	{
+//		for (int i = 0; i<EVOPOP; i++)
+//		{
+//            //NN[r][i].take_out_min_max(-XMAX / 10,XMAX / 10);
+//		//mino.push_back(-XMAX / 10);
+//		//maxo.push_back(XMAX / 10);
+//                }
+//            }
+//	}
 	cout << "done with inputsoutputs scaling" << endl;
 
-	for (int r = 0; r<num_ROVERS; r++)
-	{
-		for (int i = 0; i<EVOPOP; i++)
-		{
-                        NN[r][i].initialize();
-			NN[r][i].take_limits(mini, maxi, mino, maxo);
-		}
-	}
+	//for (int r = 0; r<num_ROVERS; r++)
+	//{
+//		for (int i = 0; i<EVOPOP; i++)
+//		{
+                        //NN[r][i].setup(INPUTS,HIDDEN,OUTPUTS);
+                        //NN[r][i].take_in_min_max(mini,maxi);
+                        //NN[r][i].take_out_min_max(mino,maxo);
+//		}
+//	}
 	cout << "nn accepted scaling factors" << endl;
 
 	rover fidos[num_ROVERS];
@@ -581,26 +641,8 @@ int main()
 						selected[r][p2] = storage;
 					}
 				}
-
-				/*for(int i=0; i<num_POI; i++)
-				{
-				cout << "POI #" << i << endl;
-				for(int r=0; r<num_ROVERS; r++)
-				{
-				fidos[r].basic_sensor(fidos[r].x,fidos[r].y,fidos[r].heading,POIs[i].x,POIs[i].y);
-				fidos[r].strength_sensor(POIs[i].red_value, POIs[i].x, POIs[i].y);
-				fidos[r].strength_sensor(POIs[i].blue_value, POIs[i].x, POIs[i].y)
-				//cout << fidos[r].basic_sensor(fidos[r].x,fidos[r].y,fidos[r].heading,POIs[i].x,POIs[i].y) << endl;
-				//cout << "RED: " << fidos[r].strength_sensor(POIs[i].red_value, POIs[i].x, POIs[i].y) << endl;
-				//cout << "BLUE: " << fidos[r].strength_sensor(POIs[i].blue_value, POIs[i].x, POIs[i].y) << endl;
-				}
-
-				}*/
-
 				/// SENSE
-				//cout << "Sense!" << endl;
-				// for all rovers
-				///*	commented out for testing			
+				//cout << "Sense!" << endl;		
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "sensing " << r << endl;
@@ -630,24 +672,29 @@ int main()
 
 					//for(int i=0; i<EVOPOP; i++)
 					//{
-					NN[r][selected[r][ev]].readinputs(inp);
+                                        VVNN.at(r).at(selected[r][ev]).clean();
+                                        VVNN.at(r).at(selected[r][ev]).take_vector_input(inp);
+					//NN[r][selected[r][ev]].readinputs(inp);
 					//}
 
 					//for(int i=0; i<EVOPOP; i++)
 					//{
 					//NN[i].scaleinputs();
-					NN[r][selected[r][ev]].go();
+					//NN[r][selected[r][ev]].go();
+					VVNN.at(r).at(selected[r][ev]).execute(INPUTS,OUTPUTS);
 					//NN[i].scaleoutputs();
 					//}
 					//for(int i=0; i<EVOPOP; i++)
 					//{
                                         //cout << "MAXO 0: " << maxo.at(0) << endl;
                                         //cout << "MAXO 1: " << maxo.at(1) << endl;
-					fidos[r].xdot = NN[r][selected[r][ev]].output[0] - maxo.at(0)/2;
-					fidos[r].ydot = NN[r][selected[r][ev]].output[1] - maxo.at(1)/2;
+					fidos[r].xdot = VVNN.at(r).at(selected[r][ev]).give_output(0);
+                                                //output[0];
+					fidos[r].ydot = VVNN.at(r).at(selected[r][ev]).give_output(1);
+                                                //output[1];
                                         //cout << NN[r][selected[r][ev]].output[0] << endl;
-                                        //cout << "FIDOX " << fidos[r].xdot << endl;
-                                        //cout << "FIDOY " << fidos[r].ydot << endl;
+                                        //cout << "FIDODX " << fidos[r].xdot << endl;
+                                        //cout << "FIDODY " << fidos[r].ydot << endl;
 					//}
 				}
 
@@ -668,7 +715,7 @@ int main()
 				for (int i = 0; i<num_POI; i++)
 				{
 					//cout << "begin react " << i << endl;
-					int assignee = POIs[i].find_kth_closest_rover(1, fidos);
+					int assignee = POIs[i].find_kth_closest_rover(0, fidos);
 					double distance = POIs[i].find_dist_to_rover(assignee, fidos);
 					double red_observation_value = POIs[i].calc_red_observation_value(distance);
 					double blue_observation_value = POIs[i].calc_blue_observation_value(distance);
@@ -692,39 +739,98 @@ int main()
 			{
 				for (int ev = 0; ev<EVOPOP; ev++)
 				{
-					NN[r][selected[r][ev]].fitness += fidos[r].local_red + fidos[r].local_blue;
+					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
 					//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 				}
 			}
 
 		}
 
-		cout << "This generation's best local fitness is: " << NN[0][selected[0][0]].fitness << endl;
+		cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
 
 		for (int r = 0; r<num_ROVERS; r++)
 		{
-			NN[r][0].ranker(NN[r]);
-			NN[r][0].sorter(NN[r]);
+                    vector<neural_network>* pVNN = &VVNN.at(r);
+                    vector<double> fit = kill_lowest_performers(pVNN,r);
+                    //sort_by_rank(NN,r);
+                    //evolve_ranked_population(NN,r);
+                    expand_population(pVNN,r,fit);
+			//NN[r][0].ranker(NN[r]);
+			//NN[r][0].sorter(NN[r]);
 		}
 
 		for (int r = 0; r<num_ROVERS; r++)
 		{
 			for (int i = 0; i<EVOPOP; i++)
 			{
-				NN[r][i].evolve(NN[r], i);
+//				NN[r][i].evolve(NN[r], i);
 			}
 		}
                 for (int r = 0; r<num_ROVERS; r++)
 		{
 			for (int i = 0; i<EVOPOP; i++)
 			{
-                            NN[r][i].reset();
+                            VVNN.at(r).at(i).clean();
                         }
                 }
-
+                
+                /// GENERATION COMPLETED
 	}
 
 	//*/
 
 	return 0;
+}
+
+
+
+vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r){
+    //vector<int> kill;
+    /// r is the rover population we are working with.
+    /// We kill the 'n' lowest performing NNs (mark for replacement in expand_population)
+    
+    // first, assemble a vector of these neural network fitnesses.
+    vector<double> fitnesses;
+    for(int i=0; i<EVOPOP; i++){
+        fitnesses.push_back(pNN->at(i).get_fitness());
+    }
+    
+    /// for as many as we need to eliminate...
+    for(int rep=0; rep<EVOPOP/2; rep++){
+    /// find the lowest index, 1 at a time.
+    double lowest_fitness = 99999999999999; /// high fitness;
+    int lowest_dex = -1; /// dummy index;
+    for(int i=0; i<fitnesses.size(); i++){
+        double debug_1 = fitnesses.at(i);
+        double debug_2 = fitnesses.size();
+        if(fitnesses.at(i) < lowest_fitness){
+            lowest_fitness = fitnesses.at(i);
+            lowest_dex = i;
+        }
+    }
+    /// kill lowest fitness.
+    fitnesses.erase(fitnesses.begin()+lowest_dex);
+    /// kill matching population member.
+    pNN->erase(pNN->begin()+lowest_dex);
+    //kill.push_back(lowest_fitness);
+    }
+    
+//    return kill;
+    return fitnesses;
+}
+
+void expand_population(vector<neural_network>* pNN, int r, vector<double> fitnesses){
+    //vector<int> survivors;
+    /// create new neural networks like the survivors.
+    for(int i=0; i<EVOPOP/2; i++){
+        int spot; // the index of the one we're replicating.
+        if (LYRAND < 0.8) {/// THIS ONE SELECTS THE BEST TO REPLICATE
+                spot = max_element(fitnesses.begin(), fitnesses.end()) - fitnesses.begin();
+            } else {
+                /// THIS ONE SELECTS A RANDOM SURVIVOR TO REPLICATE.
+                spot = rand() % pNN->size();
+            }
+        pNN->push_back(pNN->at(spot));
+        pNN->back().mutate();
+    }
 }
