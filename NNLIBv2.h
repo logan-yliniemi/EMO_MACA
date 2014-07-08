@@ -453,22 +453,22 @@ double neural::initialize()
 
 		for (int h = 0; h<HIDDEN; h++)
 		{
-			weightIH[i][h] = LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
+			weightIH[i][h] = LYRAND*SMALLISH-LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
 		}
 	}
 	for (int h = 0; h<HIDDEN; h++)
 	{
-		biasweightIH[h] = LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
+		biasweightIH[h] = LYRAND*SMALLISH-LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
 		hiddenout[h] = 0;
 		outputin[h] = 0;
 		for (int o = 0; o<OUTPUTS; o++)
 		{
-			weightHO[h][o] = LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
+			weightHO[h][o] = LYRAND*SMALLISH-LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
 		}
 	}
 	for (int o = 0; o<OUTPUTS; o++)
 	{
-		biasweightHO[o] = LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
+		biasweightHO[o] = LYRAND*SMALLISH-LYRAND*SMALLISH;//(double)rand()/RAND_MAX*SMALLISH;
 		outputout[o] = 0;
 		output[o] = 0;
 	}
@@ -490,6 +490,10 @@ double neural::initialize()
 	///INPUT AND OUTPUT LIMITS BLOCK
 
 	return 0;
+}
+
+double neural::reset(){
+    fitness=0;
 }
 
 double neural::go()

@@ -22,7 +22,7 @@
 #define num_ROVERS 3
 
 #define TIMESTEPS 100
-#define GENERATIONS 1
+#define GENERATIONS 100
 
 ///NEURAL NETWORK PARAMETERS (IN NN HEADER)
 //#define INPUTS 10
@@ -225,37 +225,6 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
 	return closest;
 }
 
-
-/*int landmark::find_kth_closest_rover_old(int k, rover* fidos)
-//{
-//cout << ">>>>>>> kthclosestrover" << endl;
-int dontcount[k];
-//cout << "check?" << endl;
-int closest;
-double mindist;
-for (int a = 0; a<k; a++)
-{
-//cout << "a: " << a << endl;
-mindist = 9999999;
-for (int b = 0; b<num_ROVERS; b++)
-{
-double delx, dely;
-delx = fidos[b].x - x;
-dely = fidos[b].y - y;
-double dis = sqrt(delx*delx + dely*dely);
-//cout << "midist " << mindist << "dist" << dis << endl;
-mindist = fmin(mindist, dis);
-if (dis == mindist)
-{
-closest = b;
-}
-}
-dontcount[a] = closest;
-}
-return closest;
-}
-*/
-
 double landmark::find_dist_to_rover(int rvr, rover* fidos)
 {
 	double delx, dely;
@@ -266,37 +235,6 @@ double landmark::find_dist_to_rover(int rvr, rover* fidos)
 	return dis;
 }
 
-/*int landmark::find_kth_closest_rover_not_i_old(int k, int i, rover* fidos)
-{
-int dontcount[k + 1];
-int closest;
-double mindist;
-for (int a = 0; a<k; a++)
-{
-if (a == i)
-{
-continue;
-}
-mindist = 9999999;
-for (int b = 0; b<num_ROVERS; b++)
-{
-double delx, dely;
-delx = fidos[b].x - x;
-dely = fidos[b].y - y;
-double dis = sqrt(delx*delx + dely*dely);
-mindist = fmin(mindist, dis);
-if (dis == mindist)
-{
-closest = b;
-}
-}
-dontcount[a] = closest;
-}
-
-return closest;
-}
-*/
-
 double landmark::calc_red_observation_value(double d)
 {
 	double val;
@@ -306,7 +244,7 @@ double landmark::calc_red_observation_value(double d)
 		return 0;
 	}
 	val = red_value / d;
-	return val;
+        return val;
 }
 
 double landmark::calc_blue_observation_value(double d)
@@ -591,6 +529,7 @@ int main()
 	{
 		for (int i = 0; i<EVOPOP; i++)
 		{
+                        NN[r][i].initialize();
 			NN[r][i].take_limits(mini, maxi, mino, maxo);
 		}
 	}
@@ -702,8 +641,13 @@ int main()
 					//}
 					//for(int i=0; i<EVOPOP; i++)
 					//{
-					fidos[r].xdot = NN[r][selected[r][ev]].output[0];
-					fidos[r].ydot = NN[r][selected[r][ev]].output[1];
+                                        //cout << "MAXO 0: " << maxo.at(0) << endl;
+                                        //cout << "MAXO 1: " << maxo.at(1) << endl;
+					fidos[r].xdot = NN[r][selected[r][ev]].output[0] - maxo.at(0)/2;
+					fidos[r].ydot = NN[r][selected[r][ev]].output[1] - maxo.at(1)/2;
+                                        //cout << NN[r][selected[r][ev]].output[0] << endl;
+                                        //cout << "FIDOX " << fidos[r].xdot << endl;
+                                        //cout << "FIDOY " << fidos[r].ydot << endl;
 					//}
 				}
 
@@ -713,7 +657,9 @@ int main()
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "acting " << r << endl;
+                                    //cout << "fidos x " << fidos[r].x << "\t";
 					fidos[r].move();
+                                    //cout << "fidos y " << fidos[r].y << endl;
 					//cout << "end acting " << r << endl;
 				}
 
@@ -747,7 +693,7 @@ int main()
 				for (int ev = 0; ev<EVOPOP; ev++)
 				{
 					NN[r][selected[r][ev]].fitness += fidos[r].local_red + fidos[r].local_blue;
-					cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
+					//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 				}
 			}
 
@@ -768,6 +714,13 @@ int main()
 				NN[r][i].evolve(NN[r], i);
 			}
 		}
+                for (int r = 0; r<num_ROVERS; r++)
+		{
+			for (int i = 0; i<EVOPOP; i++)
+			{
+                            NN[r][i].reset();
+                        }
+                }
 
 	}
 
