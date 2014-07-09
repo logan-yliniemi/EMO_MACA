@@ -119,7 +119,7 @@ public:
 	void move();
 	void full_red_sensor(landmark*);
 	void full_blue_sensor(landmark*);
-	void full_rover_sensor(rover*);
+	void full_rover_sensor(vector<rover>);
 
 
 	double local_red;
@@ -142,11 +142,9 @@ public:
 	void reset();
 
 
-	int find_kth_closest_rover(int, rover*);
-	int find_kth_closest_rover_old(int, rover*);
-	double find_dist_to_rover(int, rover*);
-	int find_kth_closest_rover_not_i(int, int, rover*);
-	int find_kth_closest_rover_not_i_old(int, int, rover*);
+	int find_kth_closest_rover(int, vector<rover>);
+	double find_dist_to_rover(int, vector<rover>);
+	int find_kth_closest_rover_not_i(int, int, vector<rover>);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -170,15 +168,15 @@ void landmark::reset()
 	blue_value = start_blue;
 }
 
-int landmark::find_kth_closest_rover(int k, rover* fidos)
+int landmark::find_kth_closest_rover(int k, vector<rover> fidos)
 {
 	int closest;
 	double closest_distance;
 	vector<double> distances;
 	for (int b = 0; b<num_ROVERS; b++){
 		double delx, dely;
-		delx = fidos[b].x - x;
-		dely = fidos[b].y - y;
+		delx = fidos.at(b).x - x;
+		dely = fidos.at(b).y - y;
 		double dis = sqrt(delx*delx + dely*dely);
 		distances.push_back(dis);
 	}
@@ -186,8 +184,8 @@ int landmark::find_kth_closest_rover(int k, rover* fidos)
 	closest_distance = distances.at(k);
 	for (int b = 0; b<num_ROVERS; b++){
 		double delx, dely;
-		delx = fidos[b].x - x;
-		dely = fidos[b].y - y;
+		delx = fidos.at(b).x - x;
+		dely = fidos.at(b).y - y;
 		double dis = sqrt(delx*delx + dely*dely);
 		if (dis == closest_distance){
 			closest = b;
@@ -197,15 +195,15 @@ int landmark::find_kth_closest_rover(int k, rover* fidos)
 	return closest;
 }
 
-int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
+int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover> fidos){
 	int closest;
 	double closest_distance;
 	vector<double> distances;
 	for (int b = 0; b<num_ROVERS; b++){
 		if (b == i){ continue; }
 		double delx, dely;
-		delx = fidos[b].x - x;
-		dely = fidos[b].y - y;
+		delx = fidos.at(b).x - x;
+		dely = fidos.at(b).y - y;
 		double dis = sqrt(delx*delx + dely*dely);
 		distances.push_back(dis);
 	}
@@ -214,8 +212,8 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
 	for (int b = 0; b<num_ROVERS; b++){
 		if (b == i){ continue; }
 		double delx, dely;
-		delx = fidos[b].x - x;
-		dely = fidos[b].y - y;
+		delx = fidos.at(b).x - x;
+		dely = fidos.at(b).y - y;
 		double dis = sqrt(delx*delx + dely*dely);
 		if (dis == closest_distance){
 			closest = b;
@@ -225,11 +223,11 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, rover* fidos){
 	return closest;
 }
 
-double landmark::find_dist_to_rover(int rvr, rover* fidos)
+double landmark::find_dist_to_rover(int rvr, vector<rover> fidos)
 {
 	double delx, dely;
-	delx = fidos[rvr].x - x;
-	dely = fidos[rvr].y - y;
+	delx = fidos.at(rvr).x - x;
+	dely = fidos.at(rvr).y - y;
 	double dis = sqrt(delx*delx + dely*dely);
 
 	return dis;
@@ -442,7 +440,7 @@ void rover::full_blue_sensor(landmark* POIs)
 	}
 }
 
-void rover::full_rover_sensor(rover* fidos)
+void rover::full_rover_sensor(vector<rover> fidos)
 {
 	int quadrant;
 	for (int r = 0; r<num_ROVERS; r++)
@@ -451,10 +449,10 @@ void rover::full_rover_sensor(rover* fidos)
 		{
 			continue;
 		}
-		quadrant = basic_sensor(x, y, heading, fidos[r].x, fidos[r].y);
+		quadrant = basic_sensor(x, y, heading, fidos.at(r).x, fidos.at(r).y);
 		double value = 1;
-		double tarx = fidos[r].x;
-		double tary = fidos[r].y;
+		double tarx = fidos.at(r).x;
+		double tary = fidos.at(r).y;
 		double str = strength_sensor(value, tarx, tary);
 
 		rover_state[quadrant] += str;
@@ -521,12 +519,19 @@ int main()
 		
 	///* commented out for testing
 	landmark POIs[num_POI];
+	//vector<landmark> POIs(num_POI);
 
 	/// x, y, r, b;
 	POIs[0].create(10, 10, 10, 10);
 	POIs[1].create(10, 90, 0, 100);
 	POIs[2].create(90, 10, 100, 0);
 	POIs[3].create(90, 90, 100, 100);
+	/*
+	for (int i = 0; i < num_POI; i++)
+	{
+		POIs.at(i).create(
+	}
+	*/
 
 	vector<double> poi_x_locations;
 	vector<double> poi_y_locations;
@@ -620,16 +625,17 @@ int main()
 //		}
 //	}
 	cout << "nn accepted scaling factors" << endl;
-
-	rover fidos[num_ROVERS];
+	vector<rover> fidos(num_ROVERS);
 	/// x,y,h
 	for (int r = 0; r<num_ROVERS; r++)
 	{
-		fidos[r].reset();
+		fidos.at(r).reset();
 	}
-	fidos[0].place(85, 90, 0);
-	fidos[1].place(25, 20, 0);
-	fidos[2].place(15, 10, pi / 2);
+	fidos.at(0).place(85, 90, 0);
+	fidos.at(1).place(25, 20, 0);
+	fidos.at(2).place(15, 10, pi/2);
+	//deterministic_place_rover();
+	//random_place_rover();
 
 	int selected[num_ROVERS][EVOPOP];
 
@@ -639,12 +645,13 @@ int main()
 		cout << "Beginning Generation " << gen << endl;
 		for (int ev = 0; ev<EVOPOP; ev++)
 		{
-			fidos[0].local_blue = 0;
-			fidos[0].local_red = 0;
-			fidos[1].local_blue = 0;
-			fidos[1].local_red = 0;
-			fidos[2].local_blue = 0;
-			fidos[2].local_red = 0;
+			fidos.at(0).local_blue = 0;
+			fidos.at(0).local_red = 0;
+			fidos.at(1).local_blue = 0;
+			fidos.at(1).local_red = 0;
+			fidos.at(2).local_blue = 0;
+			fidos.at(2).local_red = 0;
+
 			for (int t = 0; t<TIMESTEPS; t++)
 			{
 				//if(t%100==0){
@@ -672,9 +679,9 @@ int main()
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "sensing " << r << endl;
-					fidos[r].full_blue_sensor(POIs);
-					fidos[r].full_red_sensor(POIs);
-					fidos[r].full_rover_sensor(fidos);
+					fidos.at(r).full_blue_sensor(POIs);
+					fidos.at(r).full_red_sensor(POIs);
+					fidos.at(r).full_rover_sensor(fidos);
 					//cout << "end sensing " << r << endl;
 				}
 
@@ -689,11 +696,11 @@ int main()
 					//inp.push_back(fidos[r].y);
 					for (int i = 0; i<QUADRANTS; i++)
 					{
-						inp.push_back(fidos[r].red_state[i]);
+						inp.push_back(fidos.at(r).red_state[i]);
 					}
 					for (int i = 0; i<QUADRANTS; i++)
 					{
-						inp.push_back(fidos[r].blue_state[i]);
+						inp.push_back(fidos.at(r).blue_state[i]);
 					}
 
 					//for(int i=0; i<EVOPOP; i++)
@@ -714,9 +721,9 @@ int main()
 					//{
                                         //cout << "MAXO 0: " << maxo.at(0) << endl;
                                         //cout << "MAXO 1: " << maxo.at(1) << endl;
-					fidos[r].xdot = VVNN.at(r).at(selected[r][ev]).give_output(0);
+					fidos.at(r).xdot = VVNN.at(r).at(selected[r][ev]).give_output(0);
                                                 //output[0];
-					fidos[r].ydot = VVNN.at(r).at(selected[r][ev]).give_output(1);
+					fidos.at(r).ydot = VVNN.at(r).at(selected[r][ev]).give_output(1);
                                                 //output[1];
                                         //cout << NN[r][selected[r][ev]].output[0] << endl;
                                         //cout << "FIDODX " << fidos[r].xdot << endl;
@@ -728,13 +735,13 @@ int main()
 				/// ACT
 				//cout << "ACT!" << endl;
 
-				print_rover_locations(dpFILE, fidos[0].x, fidos[0].y, fidos[1].x, fidos[1].y, fidos[2].x, fidos[2].y);
+				print_rover_locations(dpFILE, fidos.at(0).x, fidos.at(0).y, fidos.at(1).x, fidos.at(1).y, fidos.at(2).x, fidos.at(2).y);
 
 				for (int r = 0; r<num_ROVERS; r++)
 				{
 					//cout << "acting " << r << endl;
                                     //cout << "fidos x " << fidos[r].x << "\t";
-					fidos[r].move();
+					fidos.at(r).move();
                                     //cout << "fidos y " << fidos[r].y << endl;
 					//cout << "end acting " << r << endl;
 				}
@@ -749,8 +756,8 @@ int main()
 					double red_observation_value = POIs[i].calc_red_observation_value(distance);
 					double blue_observation_value = POIs[i].calc_blue_observation_value(distance);
 
-					fidos[assignee].local_red += red_observation_value;
-					fidos[assignee].local_blue += blue_observation_value;
+					fidos.at(assignee).local_red += red_observation_value;
+					fidos.at(assignee).local_blue += blue_observation_value;
 
 					//cout << "at distance " << distance << endl;
 					//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
@@ -768,7 +775,8 @@ int main()
 			{
 				for (int ev = 0; ev<EVOPOP; ev++)
 				{
-					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
+					//VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
+					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos.at(r).local_red + fidos.at(r).local_blue);
 					//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 				}
 			}
