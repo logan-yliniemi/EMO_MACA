@@ -68,13 +68,12 @@ class node;
 class node{
     friend class layer;
     friend class neural_network;
-    //vector<double> ins;
-    //vector<double> inweights;
+
     double min;
     double max;
-    //void scale_inputs();
-    //void scale_outputs();
+    
     void sigmoid();
+    void true_sigmoid();
     
     double inp;
     double out;
@@ -134,8 +133,6 @@ void node::setup(int mi, int ma){
     clean();
     min=mi;
     max=ma;
-    //outconnections.clear();
-    //outweights.clear();
 }
 
 class layer{
@@ -284,23 +281,7 @@ void neural_network::clean(){
     fitness=-14;
 }
 
-
-//void node::scale_inputs(){
-//    inp=inp-min;
-//    inp=inp/max;
-//}
-
-//void node::scale_outputs(){
-//    out=out*max;
-//    out=out+min;
-//}
-
 void node::sigmoid(){
-    //
-    //map<int,double>::iterator it;
-    
-    //out = 1/(1+exp(-inp));
-    //return;
     
     static map< int, double > sig_iomap;
     int input_int = inp*TRIG_GRANULARITY;
@@ -310,37 +291,10 @@ void node::sigmoid(){
       out = 1/(1+exp(-inp));
       sig_iomap.insert(pair <int,double> (input_int,out));
     }
-//    
-//    static int counter;
-//    static double mini;
-//    static double maxi;
-//    
-//    //cout << "MINI: " << mini << endl;
-//    
-//    if(counter==0){
-//        mini=9999999;
-//        maxi=-999999;
-//    }
-//    
-//    if(inp < mini){
-//        mini=inp;
-//    }
-//    if(inp > maxi){
-//        maxi=inp;
-//    }
-//    
-//    if(counter%1000000==0){
-//        
-//        cout << "\t\t\t\t\t\t MAP SIZE: " << sig_iomap.size() << "\t" << mini << "\t" << maxi << endl;
-//    }
-//    
-//    counter++;
-    
-    //static int counter;
-    //static double error;
-    //error+= fabs(out - 1/(1+exp(-inp)));
-    //counter++;
-    //cout << (double)error/counter << endl;
+}
+
+void node::true_sigmoid(){
+    out = 1/(1+exp(-inp));
 }
 
 void neural_network::setup(int inp, int hid, int out){
@@ -349,14 +303,12 @@ void neural_network::setup(int inp, int hid, int out){
     hidden.layer_nodes.clear();
     output.layer_nodes.clear();
     
-    for(int i=0; i<inp+1; i++){
+    for(int i=0; i<=inp; i++){
     node N;
-    //node* pN=&N;
     N.clean();
     N.bias=false;
     N.make_full_connected(hid);
     if(i==inp){N.bias=true;}
-    //if(N.bias==false){set_node_scaling(pN,true,false,i);}
     input.layer_nodes.push_back(N);
     }
     for(int h=0; h<hid+1; h++){
@@ -369,56 +321,23 @@ void neural_network::setup(int inp, int hid, int out){
     }
     for(int o=0; o<out; o++){
     node N;
-    //node* pN=&N;
     N.clean();
-    //if(N.bias==false){set_node_scaling(pN,false,true,o);}
     output.layer_nodes.push_back(N);
     }
     
 }
 
-//void neural_network::set_node_scaling(node* pN, bool ip, bool op, int node_num){
-//    
-//    if(ip==true){
-//        pN->min=input_minimums.at(node_num);
-//        pN->max=input_maximums.at(node_num);
-//    }
-//    if(op==true){
-//        pN->min=output_minimums.at(node_num);
-//        pN->max=output_maximums.at(node_num);
-//    }
-//}
-
 void neural_network::execute(int input_number, int output_number){
     int hidden_number=hidden.layer_nodes.size()-1;
-    //input_number++; /// allow for bias
-    
-    /// input takes input;
 
     for(int i=0; i<input_number; i++){
         input.layer_nodes.at(i).inp=
                 (input_values.at(i)-input_minimums.at(i))/(input_maximums.at(i)-input_minimums.at(i));
-        //input.layer_nodes.at(i).scale_inputs();
         input.layer_nodes.at(i).sigmoid();
         //cout << "INPUT LAYER: " << input.layer_nodes.at(i).out<< endl;
     }
     input.layer_nodes.back().out=1;
     
-//    if(rand()%10000==0)
-//    {
-//        cout << "NN INPUT SAMPLES" << endl;
-//        for(int i=0; i<input_number; i++){
-//        cout << input_values.at(i) << "\t";
-//        }
-//        cout << endl;
-//        for(int i=0; i<input_number; i++){
-//            cout << input.layer_nodes.at(i).inp << "\t";
-//        }
-//        cout << endl;
-//    }
-    
-    //cout << input.layer_nodes.size() << endl;
-    //cout << "INPUT LAYERBIAS : " << input.layer_nodes.back().out<< endl;
     /// input to hidden;
     for(int i=0; i<input_number+1; i++){
         for(int j=0; j<input.layer_nodes.at(i).outconnections.size(); j++){
@@ -436,7 +355,6 @@ void neural_network::execute(int input_number, int output_number){
         //cout << "H LAYER: " << hidden.layer_nodes.at(h).out<< endl;
     }
     hidden.layer_nodes.back().out=1;
-     //cout << "H LAYERBIAS : " << hidden.layer_nodes.back().out<< endl;
     
     /// hidden to output;
     for(int h=0; h<hidden_number; h++){
@@ -457,7 +375,6 @@ void neural_network::execute(int input_number, int output_number){
         //cout << "O LAYERfloor: " << o << "::" << output.layer_nodes.at(o).out<< endl;
         output.layer_nodes.at(o).output_ceiling();
         //cout << "O LAYERceil: " << o << "::" << output.layer_nodes.at(o).out<< endl;
-        //output.layer_nodes.at(o).scale_outputs();
         output_values.push_back(output.layer_nodes.at(o).out*(output_maximums.at(o)-output_minimums.at(o))+output_minimums.at(o));
         //cout << "O LAYERout: " << output.layer_nodes.at(o).out*(output_maximums.at(o)-output_minimums.at(o))+output_minimums.at(o) << endl;
     }
