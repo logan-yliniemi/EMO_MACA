@@ -7,9 +7,9 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
-#include "NNV.h"
 #include <ctime>
 #include <algorithm>
+#include "NNV.h"
 
 #define pi 3.141529
 #define QUADRANTS 4
@@ -19,10 +19,10 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 1
+#define num_ROVERS 3
 
 #define TIMESTEPS 10
-#define GENERATIONS 1000
+#define GENERATIONS 1
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 8
@@ -461,7 +461,7 @@ void rover::full_rover_sensor(rover* fidos)
 	}
 }
 
-void rover_sensor_testing(){
+void basic_rover_sensor_testing(){
     // Stuff for testing
 
 	rover testrover;
@@ -496,21 +496,29 @@ FILE* open_files(){
 vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r);
 void expand_population(vector<neural_network>* pNN, int r, vector<double>);
 
-void print_to_file(FILE * pFILE, double x1, double y1, double x2, double y2, double x3, double y3)
+void print_rover_locations(FILE * dpFILE, double x1, double y1, double x2, double y2, double x3, double y3)
 {
-	fprintf(pFILE, "%.2f %.2f %.2f %.2f %.2f %.2f\n", x1, y1, x2, y2, x3, y3);
+	fprintf(dpFILE, "%.2f %.2f %.2f %.2f %.2f %.2f\n", x1, y1, x2, y2, x3, y3);
+}
+
+void print_poi_locations(FILE * ddpFILE, vector<double> x, vector<double> y, double POIs)
+{
+	for (int i = 0; i < POIs; i++)
+	{
+		fprintf(ddpFILE, "%.2f %.2f\n", x.at(i), y.at(i));
+	}
 }
 
 int main()
 {
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
-//        rover_sensor_testing();
-        FILE* pFILE = open_files();
+//        basic_rover_sensor_testing();
+//        FILE* pFILE = open_files();
 	
-		FILE * dpFILE;
-		dpFILE = fopen("rover_locations.txt", "w");
-
+	FILE * dpFILE = fopen("rover_locations.txt", "w");
+	FILE * ddpFILE = fopen("poi_locations.txt", "w");
+		
 	///* commented out for testing
 	landmark POIs[num_POI];
 
@@ -519,6 +527,17 @@ int main()
 	POIs[1].create(10, 90, 0, 100);
 	POIs[2].create(90, 10, 100, 0);
 	POIs[3].create(90, 90, 100, 100);
+
+	vector<double> poi_x_locations;
+	vector<double> poi_y_locations;
+
+	for (int j = 0; j < num_POI; j++)
+	{
+		poi_x_locations.push_back(POIs[j].x);
+		poi_y_locations.push_back(POIs[j].y);
+	}
+
+	print_poi_locations(ddpFILE, poi_x_locations, poi_y_locations, num_POI);
 
         vector< vector<neural_network> > VVNN;
         vector< neural_network > VNN; 
@@ -709,7 +728,7 @@ int main()
 				/// ACT
 				//cout << "ACT!" << endl;
 
-				print_to_file(dpFILE, fidos[0].x, fidos[0].y, fidos[1].x, fidos[1].y, fidos[2].x, fidos[2].y);
+				print_rover_locations(dpFILE, fidos[0].x, fidos[0].y, fidos[1].x, fidos[1].y, fidos[2].x, fidos[2].y);
 
 				for (int r = 0; r<num_ROVERS; r++)
 				{
@@ -788,7 +807,6 @@ int main()
 	}
 
 	//*/
-
 	return 0;
 }
 

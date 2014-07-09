@@ -9,14 +9,15 @@
 #ifndef NNV_H
 #define	NNV_H
 
-#include <vector.h>
+#include <vector>
 #include <math.h>
-#include <map.h>
+#include <map>
 
 #define LYRAND ((double)rand()/RAND_MAX)
 //#define BEGIN (sqrt(5))
 #define BEGIN 0.01
 
+using namespace std;
 
 
 /// BGN NON NNV, BUT NECESSARY FUNCTION BLOC
@@ -96,7 +97,7 @@ public:
 };
 
 double node::get_average_outweights(){
-    double num;
+    double num=0.0;
     for(int i=0; i<outweights.size(); i++){
         num+=fabs(outweights.at(i));
     }
@@ -167,7 +168,7 @@ class neural_network{
     double fitness;
     
 public:
-    void clean();
+	void clean();
     void execute(int,int);
     void setup(int,int,int);
     void take_input(double);
