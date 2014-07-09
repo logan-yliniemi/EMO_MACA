@@ -9,6 +9,7 @@
 #include <vector>
 #include <ctime>
 #include <algorithm>
+#include <cstdlib>
 #include "NNV.h"
 
 #define pi 3.141529
@@ -20,6 +21,7 @@
 
 #define num_POI 4
 #define num_ROVERS 3
+#define DETERMINISTICALLY_PLACED 3 //cannot be more than num_ROVERS
 
 #define TIMESTEPS 10
 #define GENERATIONS 1
@@ -287,7 +289,33 @@ int rover::place(double xspot, double yspot, double head)
 	x = xspot;
 	y = yspot;
 	heading = head;
+	xresolve(x);
+	yresolve(y);
 	angle_resolve(heading);
+
+	if (x>XMIN && y>YMIN && x<XMAX && y<YMAX)
+	{
+		return 0;
+	}
+	else
+	{
+		cout << "rover::place error" << endl;
+		return 1;
+	}
+}
+
+int deterministic_place(vector<rover>& fidos)
+{
+	srand(1);
+	double x, y, heading;
+	for (int i = 0; i < DETERMINISTICALLY_PLACED; i++)
+	{
+		x = rand() % 101;
+		y = rand() % 101;
+		heading = rand() % 361 * pi / 180;
+		cout << x << " " << y << " " << heading << endl;
+		fidos.at(i).place(x, y, heading);
+	}
 
 	if (x>XMIN && y>YMIN && x<XMAX && y<YMAX)
 	{
@@ -631,11 +659,9 @@ int main()
 	{
 		fidos.at(r).reset();
 	}
-	fidos.at(0).place(85, 90, 0);
-	fidos.at(1).place(25, 20, 0);
-	fidos.at(2).place(15, 10, pi/2);
-	//deterministic_place_rover();
-	//random_place_rover();
+
+	deterministic_place(fidos);
+	//random_place();
 
 	int selected[num_ROVERS][EVOPOP];
 
@@ -645,12 +671,11 @@ int main()
 		cout << "Beginning Generation " << gen << endl;
 		for (int ev = 0; ev<EVOPOP; ev++)
 		{
-			fidos.at(0).local_blue = 0;
-			fidos.at(0).local_red = 0;
-			fidos.at(1).local_blue = 0;
-			fidos.at(1).local_red = 0;
-			fidos.at(2).local_blue = 0;
-			fidos.at(2).local_red = 0;
+			for (int k = 0; k < num_ROVERS; k++)
+			{
+				fidos.at(k).local_blue = 0;
+				fidos.at(k).local_red = 0;
+			}
 
 			for (int t = 0; t<TIMESTEPS; t++)
 			{
@@ -782,6 +807,7 @@ int main()
 			}
 
 		}
+		/// END EVOPOP LOOP
 
 		cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
 
