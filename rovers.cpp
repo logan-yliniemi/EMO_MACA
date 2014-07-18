@@ -20,8 +20,8 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 2
-#define DETERMINISTICALLY_PLACED 2 //cannot be more than num_ROVERS
+#define num_ROVERS 4
+#define DETERMINISTICALLY_PLACED 5 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define TIMESTEPS 10
 #define GENERATIONS 1
@@ -113,6 +113,8 @@ public:
 	double rover_state[QUADRANTS];
 	double blue_state[QUADRANTS];
 	double red_state[QUADRANTS];
+	double difference_reward;
+	double perfectly_learnable_reward;
 
 	int basic_sensor(double, double, double, double, double);
 	void reset();
@@ -139,6 +141,7 @@ public:
 	double max_obs_distance;
 	double x;
 	double y;
+	vector<double> distances;
 
 	void create(double, double, double, double);
 	void reset();
@@ -147,6 +150,7 @@ public:
 	int find_kth_closest_rover(int, vector<rover>);
 	double find_dist_to_rover(int, vector<rover>);
 	int find_kth_closest_rover_not_i(int, int, vector<rover>);
+	void find_dist_to_all_rovers(vector<rover>);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -235,6 +239,14 @@ double landmark::find_dist_to_rover(int rvr, vector<rover> fidos)
 	return dis;
 }
 
+void landmark::find_dist_to_all_rovers(vector<rover> fidos)
+{
+	for (int i = 0; i < num_ROVERS; i++)
+	{
+		distances.push_back(find_dist_to_rover(i, fidos));
+	}
+}
+
 double landmark::calc_red_observation_value(double d)
 {
 	double val;
@@ -304,18 +316,34 @@ int rover::place(double xspot, double yspot, double head)
 	}
 }
 
-void deterministic_place(vector<rover>& fidos)
+int deterministic_and_random_place(vector<rover>& fidos)
 {
+	// pseudo-randomly place a number of rovers
 	srand(1);
 	double x, y, heading;
 	for (int i = 0; i < DETERMINISTICALLY_PLACED; i++)
 	{
+		if (i == num_ROVERS)
+			return 0;
 		x = rand() % 101;
 		y = rand() % 101;
 		heading = rand() % 361 * pi / 180;
 		cout << x << " " << y << " " << heading << endl;
 		fidos.at(i).place(x, y, heading);
 	}
+
+	// randomly place the rest of the rovers
+	int left_over = num_ROVERS - DETERMINISTICALLY_PLACED;
+	srand(time(NULL));
+	for (int j = left_over; j > 0; j--)
+	{
+		x = rand() % 101;
+		y = rand() % 101;
+		heading = rand() % 361 * pi / 180;
+		cout << x << " " << y << " " << heading << endl;
+		fidos.at(num_ROVERS-j).place(x, y, heading);
+	}
+
 }
 
 int rover::basic_sensor(double roverx, double rovery, double rover_heading, double tarx, double tary)
@@ -521,15 +549,15 @@ void print_rover_locations(FILE * pFILE1, vector<rover>& fidos)
 
 	for (int j = 0; j < num_ROVERS * 2; j++)
 	{
-		fprintf(pFILE1, "%.2f ", temp_store.at(j), temp_store.at(j));
+		fprintf(pFILE1, "%.2f ", temp_store.at(j));
 	}
 
 	fprintf(pFILE1, "\n");
 }
 
-void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y, double POIs)
+void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y)
 {
-	for (int i = 0; i < POIs; i++)
+	for (int i = 0; i < num_POI; i++)
 	{
 		fprintf(pFILE2, "%.2f %.2f\n", x.at(i), y.at(i));
 	}
@@ -573,7 +601,7 @@ int main()
 		poi_y_locations.push_back(POIs[j].y);
 	}
 
-	print_poi_locations(pFILE2, poi_x_locations, poi_y_locations, num_POI);
+	print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
 
         vector< vector<neural_network> > VVNN;
         vector< neural_network > VNN; 
@@ -663,8 +691,7 @@ int main()
 		fidos.at(r).reset();
 	}
 
-	deterministic_place(fidos);
-	//random_place();
+	deterministic_and_random_place(fidos);
 
 	int selected[num_ROVERS][EVOPOP];
 
@@ -776,16 +803,30 @@ int main()
 
 				/// REACT
 				//cout << "REACT!" << endl;
+				double red_observation_value = 0, blue_observation_value = 0;
+				double global_reward = 0;
+
 				for (int i = 0; i<num_POI; i++)
 				{
 					//cout << "begin react " << i << endl;
-					int assignee = POIs[i].find_kth_closest_rover(0, fidos);
-					double distance = POIs[i].find_dist_to_rover(assignee, fidos);
-					double red_observation_value = POIs[i].calc_red_observation_value(distance);
-					double blue_observation_value = POIs[i].calc_blue_observation_value(distance);
 
-					fidos.at(assignee).local_red += red_observation_value;
-					fidos.at(assignee).local_blue += blue_observation_value;
+					//int assignee = POIs[i].find_kth_closest_rover(0, fidos);
+					//double distance = POIs[i].find_dist_to_rover(assignee, fidos);
+					//double red_observation_value = POIs[i].calc_red_observation_value(distance);
+					//double blue_observation_value = POIs[i].calc_blue_observation_value(distance);
+
+					//fidos.at(assignee).local_red += red_observation_value;
+					//fidos.at(assignee).local_blue += blue_observation_value;
+
+					POIs[i].find_dist_to_all_rovers(fidos);
+
+					for (int j = 0; j < num_ROVERS; j++)
+					{
+						red_observation_value += POIs[i].calc_red_observation_value(POIs[i].distances.at(j));
+						blue_observation_value += POIs[i].calc_blue_observation_value(POIs[i].distances.at(j));
+					}
+
+					global_reward += red_observation_value + blue_observation_value;
 
 					//cout << "at distance " << distance << endl;
 					//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
@@ -794,6 +835,25 @@ int main()
 
 					//int assignee_not_i=POIs[i].find_kth_closest_rover_not_i(0,i,&fido);
 					//double distance_not_i=POIs[i].find_dist_to_rover(assignee_not_i,&fido);
+				}
+
+				//uses the distances to each rover to find the perfectly learnable reward and difference rewards
+				for (int i = 0; i < num_ROVERS; i++)
+				{
+					double P_i = 0;
+					double counterfactual = global_reward;
+					for (int j = 0; j < num_POI; j++)
+					{
+						P_i += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+						P_i += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+						if (POIs[j].distances.at(i) < POIs[j].max_obs_distance)
+						{
+							counterfactual -= POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+							counterfactual -= POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+						}
+					}
+					fidos.at(i).perfectly_learnable_reward = P_i;
+					fidos.at(i).difference_reward = counterfactual;
 				}
 				//cout << "end timestep" << endl;
 			}
@@ -804,7 +864,7 @@ int main()
 				for (int ev = 0; ev<EVOPOP; ev++)
 				{
 					//VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
-					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos.at(r).local_red + fidos.at(r).local_blue);
+					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos.at(r).difference_reward);
 					//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 				}
 			}
