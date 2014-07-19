@@ -10,6 +10,7 @@
 #include <ctime>
 #include <algorithm>
 #include <cstdlib>
+#include <numeric>
 #include "NNV.h"
 
 #define pi 3.141529
@@ -21,7 +22,7 @@
 
 #define num_POI 4
 #define num_ROVERS 4
-#define DETERMINISTICALLY_PLACED 5 // If more than num_ROVERS, will deterministcally place all rovers
+#define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define TIMESTEPS 10
 #define GENERATIONS 1
@@ -30,7 +31,7 @@
 #define INPUTS 8
 #define HIDDEN 10
 #define OUTPUTS 2
-#define EVOPOP 100
+#define EVOPOP 5
 
 using namespace std;
 
@@ -107,18 +108,24 @@ public:
 	double heading;
 	double x;
 	double y;
+	double xstart;
+	double ystart;
+	double headingstart;
 	double xdot;
 	double ydot;
 	int ID;
 	double rover_state[QUADRANTS];
 	double blue_state[QUADRANTS];
 	double red_state[QUADRANTS];
-	double difference_reward;
-	double perfectly_learnable_reward;
+	vector<double> global_chunks;
+	vector<double> difference_chunks;
+	vector<double> perfectly_learnable_chunks;
+	vector<double> sumglobal;
 
 	int basic_sensor(double, double, double, double, double);
 	void reset();
 	int place(double, double, double);
+	void replace();
 	double strength_sensor(double, double, double);
 	void move();
 	void full_red_sensor(landmark*);
@@ -241,6 +248,7 @@ double landmark::find_dist_to_rover(int rvr, vector<rover> fidos)
 
 void landmark::find_dist_to_all_rovers(vector<rover> fidos)
 {
+	distances.clear();
 	for (int i = 0; i < num_ROVERS; i++)
 	{
 		distances.push_back(find_dist_to_rover(i, fidos));
@@ -269,6 +277,18 @@ double landmark::calc_blue_observation_value(double d)
 	}
 	val = blue_value / d;
 	return val;
+}
+
+void rover::replace()
+{
+	/// clears the rover's information, for easier debugging.
+	heading = headingstart;
+	x = xstart;
+	y = ystart;
+	xdot = 0;
+	ydot = 0;
+	local_blue = 0;
+	local_red = 0;
 }
 
 void rover::reset()
@@ -300,6 +320,9 @@ int rover::place(double xspot, double yspot, double head)
 	num++;
 	x = xspot;
 	y = yspot;
+	xstart = xspot;
+	ystart = yspot;
+	headingstart = head;
 	heading = head;
 	xresolve(x);
 	yresolve(y);
@@ -505,6 +528,16 @@ void rover::full_rover_sensor(vector<rover> fidos)
 	}
 }
 
+void clear_rewards(vector<rover>& fidos)
+{
+	for (int i = 0; i < num_ROVERS; i++)
+	{
+		fidos.at(i).global_chunks.clear();
+		fidos.at(i).perfectly_learnable_chunks.clear();
+		fidos.at(i).difference_chunks.clear();
+	}
+}
+
 void basic_rover_sensor_testing(){
     // Stuff for testing
 
@@ -530,6 +563,31 @@ void basic_rover_sensor_testing(){
 	//*/
 
 	// End testing
+}
+
+void rover_place_test(vector<rover>& fidos)
+{
+	double x, y, heading;
+
+	x = 10;
+	y = 20;
+	heading = 0;
+	fidos.at(0).place(x, y, heading);
+
+	x = 10;
+	y = 80;
+	heading = 0;
+	fidos.at(1).place(x, y, heading);
+
+	x = 90;
+	y = 20;
+	heading = 0;
+	fidos.at(2).place(x, y, heading);
+
+	x = 90;
+	y = 80;
+	heading = 0;
+	fidos.at(3).place(x, y, heading);
 }
 
 FILE* open_files(){
@@ -691,9 +749,13 @@ int main()
 		fidos.at(r).reset();
 	}
 
-	deterministic_and_random_place(fidos);
+	//deterministic_and_random_place(fidos);
+	rover_place_test(fidos);
 
 	int selected[num_ROVERS][EVOPOP];
+	vector<double> sum_global;
+	vector<double> sum_perfect;
+	vector<double> sum_difference;
 
 	cout << "Preliminaries completed" << endl;
 	for (int gen = 0; gen<GENERATIONS; gen++)
@@ -701,10 +763,11 @@ int main()
 		cout << "Beginning Generation " << gen << endl;
 		for (int ev = 0; ev<EVOPOP; ev++)
 		{
-			for (int k = 0; k < num_ROVERS; k++)
+			clear_rewards(fidos);
+
+			for (int k = 0; k<num_ROVERS; k++)
 			{
-				fidos.at(k).local_blue = 0;
-				fidos.at(k).local_red = 0;
+				fidos.at(k).replace();
 			}
 
 			for (int t = 0; t<TIMESTEPS; t++)
@@ -804,7 +867,7 @@ int main()
 				/// REACT
 				//cout << "REACT!" << endl;
 				double red_observation_value = 0, blue_observation_value = 0;
-				double global_reward = 0;
+				double global = 0;
 
 				for (int i = 0; i<num_POI; i++)
 				{
@@ -826,7 +889,7 @@ int main()
 						blue_observation_value += POIs[i].calc_blue_observation_value(POIs[i].distances.at(j));
 					}
 
-					global_reward += red_observation_value + blue_observation_value;
+					global += red_observation_value + blue_observation_value;
 
 					//cout << "at distance " << distance << endl;
 					//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
@@ -841,7 +904,7 @@ int main()
 				for (int i = 0; i < num_ROVERS; i++)
 				{
 					double P_i = 0;
-					double counterfactual = global_reward;
+					double counterfactual = global;
 					for (int j = 0; j < num_POI; j++)
 					{
 						P_i += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
@@ -852,27 +915,41 @@ int main()
 							counterfactual -= POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
 						}
 					}
-					fidos.at(i).perfectly_learnable_reward = P_i;
-					fidos.at(i).difference_reward = counterfactual;
+					fidos.at(i).global_chunks.push_back(global);
+					fidos.at(i).perfectly_learnable_chunks.push_back(P_i);
+					fidos.at(i).difference_chunks.push_back(counterfactual);
 				}
-				//cout << "end timestep" << endl;
 			}
-			/// END TIMESTEP
+
+			/// END TIMESTEP LOOP
+
+			//////
+			for (int i = 0; i < num_ROVERS; i++)
+			{
+				sum_global.push_back(accumulate(fidos.at(i).global_chunks.begin(), fidos.at(i).global_chunks.end(), 0.0));
+				sum_perfect.push_back(accumulate(fidos.at(i).perfectly_learnable_chunks.begin(), fidos.at(i).perfectly_learnable_chunks.end(), 0.0));
+				sum_difference.push_back(accumulate(fidos.at(i).difference_chunks.begin(), fidos.at(i).difference_chunks.end(), 0.0));
+			}
 
 			for (int r = 0; r<num_ROVERS; r++)
 			{
-				for (int ev = 0; ev<EVOPOP; ev++)
-				{
 					//VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
-					VVNN.at(r).at(selected[r][ev]).set_fitness(fidos.at(r).difference_reward);
+					VVNN.at(r).at(selected[r][ev]).set_fitness(sum_global.at(r));
 					//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
-				}
 			}
-
+			sum_global.clear();
+			sum_perfect.clear();
+			sum_difference.clear();
 		}
 		/// END EVOPOP LOOP
 
 		cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
+
+		for (int iii = 0; iii < EVOPOP; iii++){
+			for (int rove = 0; rove < num_ROVERS; rove++){
+				cout << "!!!!!!!" << VVNN.at(rove).at(selected[rove][iii]).get_fitness() << endl;
+			}
+		}
 
 		for (int r = 0; r<num_ROVERS; r++)
 		{
@@ -885,20 +962,13 @@ int main()
 			//NN[r][0].sorter(NN[r]);
 		}
 
-		for (int r = 0; r<num_ROVERS; r++)
+		for (int r = 0; r < num_ROVERS; r++)
 		{
-			for (int i = 0; i<EVOPOP; i++)
+			for (int i = 0; i < EVOPOP; i++)
 			{
-//				NN[r][i].evolve(NN[r], i);
+				VVNN.at(r).at(i).clean();
 			}
 		}
-                for (int r = 0; r<num_ROVERS; r++)
-		{
-			for (int i = 0; i<EVOPOP; i++)
-			{
-                            VVNN.at(r).at(i).clean();
-                        }
-                }
                 
                 /// GENERATION COMPLETED
 	}

@@ -279,7 +279,7 @@ void neural_network::clean(){
     input.clean();
     hidden.clean();
     output.clean();
-    fitness=-14;
+    fitness=0;
 }
 
 void node::sigmoid(){
