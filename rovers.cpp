@@ -27,11 +27,14 @@
 #define TIMESTEPS 10
 #define GENERATIONS 20
 
+#define ROVERWATCH 0 // Index of rover to watch.
+#define MIN_OBS_DIST (XMAX/100)
+
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 12
-#define HIDDEN 10
+#define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 4
+#define EVOPOP 100
 
 using namespace std;
 
@@ -181,7 +184,7 @@ void landmark::create(double xpos, double ypos, double red, double blue)
 	blue_value = blue;
 	start_red = red_value;
 	start_blue = blue_value;
-	min_obs_distance = XMAX / 100; /// LYLY ADJUSTABLE
+	min_obs_distance = MIN_OBS_DIST; /// LYLY ADJUSTABLE
 	max_obs_distance = XMAX / 1; /// LYLY ADJUSTABLE
 }
 
@@ -439,54 +442,18 @@ int rover::basic_sensor(double roverx, double rovery, double rover_heading, doub
 
 double rover::strength_sensor(double value, double tarx, double tary)
 {
-	double str = -1;
-
-	double delta = find_distance(x, y, tarx, tary);
-
-	double tarheading = atan2((y - tary), (x - tarx));
-
-	double del_heading;
-	del_heading = tarheading - heading;
-	angle_resolve_pmpi(del_heading);
-
-	//cout << "del_heading: " << del_heading << endl;
-
-	double nw = pi / 4;
-	double ne = -pi / 4;
-	double sw = 3 * pi / 4;
-	double se = -3 * pi / 4;
-	double center;
-
-	if (del_heading<nw && del_heading>ne) /// +/- 45
-	{
-		center = 0;
-	}
-	if (del_heading >= nw && del_heading<sw)
-	{
-		/// object is "left" of the robot
-		center = pi / 2;
-	}
-	if (del_heading <= ne && del_heading>se)
-	{
-		///object is "right" of the robot
-		center = -pi / 2;
-	}
-	if (del_heading <= se || del_heading >= sw)
-	{
-		///object is "behind" the robot
-		center = pi;
-	}
-
-	double theta = center - del_heading;
-
-	if (center == pi)
-	{
-		theta = fmin(theta, -center - del_heading);
-	}
-
-	str = value / delta*(1 - theta / (pi / 4));
-
-	return str;
+    double numerator;
+    double denominator;
+    double strength;
+        
+        numerator = value;
+        double delx = x-tarx;
+        double dely = y-tary;
+        denominator = fmax(sqrt(delx*delx+dely*dely),MIN_OBS_DIST);
+       
+	strength = numerator / denominator;
+        
+        return strength;
 }
 
 void rover::full_red_sensor(landmark* POIs)
@@ -506,6 +473,13 @@ void rover::full_red_sensor(landmark* POIs)
 
 		red_state[quadrant] += str;
 	}
+        if(ID == ROVERWATCH){
+            cout << "ROVER " << ROVERWATCH << " RED STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << red_state[i] << "\t";
+            }
+            cout << endl;
+        }
 //	for (int i = 0; i < QUADRANTS; i++)
 //	{
 //		cout << red_state[i] << "\t";
@@ -530,6 +504,13 @@ void rover::full_blue_sensor(landmark* POIs)
 
 		blue_state[quadrant] += str;
 	}
+        if(ID == ROVERWATCH){
+            cout << "ROVER " << ROVERWATCH << " BLUE STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << blue_state[i] << "\t";
+            }
+            cout << endl;
+        }
 }
 
 void rover::full_rover_sensor(vector<rover> fidos)
@@ -553,6 +534,13 @@ void rover::full_rover_sensor(vector<rover> fidos)
 
 		rover_state[quadrant] += str;
 	}
+        if(ID == ROVERWATCH){
+            cout << "ROVER " << ROVERWATCH << " ROVER STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << rover_state[i] << "\t";
+            }
+            cout << endl;
+        }
 }
 
 void clear_rewards(vector<rover>& fidos)
@@ -686,9 +674,9 @@ void rover::decide(int ev){
     //{
     //cout << "MAXO 0: " << maxo.at(0) << endl;
     //cout << "MAXO 1: " << maxo.at(1) << endl;
-    xdot = population.at(selected.at(ev)).give_output(0) * 10;
+    xdot = population.at(selected.at(ev)).give_output(0);
             //output[0];
-    ydot = population.at(selected.at(ev)).give_output(1) * 10;
+    ydot = population.at(selected.at(ev)).give_output(1);
             //output[1];
     //cout << NN[r][selected[r][ev]].output[0] << endl;
     //cout << "FIDODX " << fidos[r].xdot << endl;
