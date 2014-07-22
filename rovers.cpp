@@ -25,7 +25,7 @@
 #define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define TIMESTEPS 10
-#define GENERATIONS 20
+#define GENERATIONS 3
 
 #define ROVERWATCH 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
@@ -34,7 +34,7 @@
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 100
+#define EVOPOP 10
 
 using namespace std;
 
@@ -168,9 +168,9 @@ public:
 
 
 	int find_kth_closest_rover(int, vector<rover>);
-	double find_dist_to_rover(int, vector<rover>);
+	double find_dist_to_rover(int, vector<rover>&);
 	int find_kth_closest_rover_not_i(int, int, vector<rover>);
-	void find_dist_to_all_rovers(vector<rover>);
+	void find_dist_to_all_rovers(vector<rover>&);
 
 	double calc_red_observation_value(double);
 	double calc_blue_observation_value(double);
@@ -249,7 +249,7 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover> fidos){
 	return closest;
 }
 
-double landmark::find_dist_to_rover(int rvr, vector<rover> fidos)
+double landmark::find_dist_to_rover(int rvr, vector<rover>& fidos)
 {
 	double delx, dely;
 	delx = fidos.at(rvr).x - x;
@@ -259,7 +259,7 @@ double landmark::find_dist_to_rover(int rvr, vector<rover> fidos)
 	return dis;
 }
 
-void landmark::find_dist_to_all_rovers(vector<rover> fidos)
+void landmark::find_dist_to_all_rovers(vector<rover>& fidos)
 {
 	distances.clear();
 	for (int i = 0; i < num_ROVERS; i++)
