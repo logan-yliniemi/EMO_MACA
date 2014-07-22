@@ -25,13 +25,13 @@
 #define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define TIMESTEPS 10
-#define GENERATIONS 1
+#define GENERATIONS 20
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 12
 #define HIDDEN 10
 #define OUTPUTS 2
-#define EVOPOP 5
+#define EVOPOP 4
 
 using namespace std;
 
@@ -492,6 +492,10 @@ double rover::strength_sensor(double value, double tarx, double tary)
 void rover::full_red_sensor(landmark* POIs)
 {
 	int quadrant;
+	for (int i = 0; i < QUADRANTS; i++)
+	{
+		red_state[i] = 0;
+	}
 	for (int i = 0; i<num_POI; i++)
 	{
 		quadrant = basic_sensor(x, y, heading, POIs[i].x, POIs[i].y);
@@ -502,11 +506,20 @@ void rover::full_red_sensor(landmark* POIs)
 
 		red_state[quadrant] += str;
 	}
+//	for (int i = 0; i < QUADRANTS; i++)
+//	{
+//		cout << red_state[i] << "\t";
+//	}
+//	cout << endl;
 }
 
 void rover::full_blue_sensor(landmark* POIs)
 {
 	int quadrant;
+	for (int i = 0; i < QUADRANTS; i++)
+	{
+		blue_state[i] = 0;
+	}
 	for (int i = 0; i<num_POI; i++)
 	{
 		quadrant = basic_sensor(x, y, heading, POIs[i].x, POIs[i].y);
@@ -522,6 +535,10 @@ void rover::full_blue_sensor(landmark* POIs)
 void rover::full_rover_sensor(vector<rover> fidos)
 {
 	int quadrant;
+	for (int i = 0; i < QUADRANTS; i++)
+	{
+		rover_state[i] = 0;
+	}
 	for (int r = 0; r<num_ROVERS; r++)
 	{
 		if (r == ID)
@@ -669,9 +686,9 @@ void rover::decide(int ev){
     //{
     //cout << "MAXO 0: " << maxo.at(0) << endl;
     //cout << "MAXO 1: " << maxo.at(1) << endl;
-    xdot = population.at(selected.at(ev)).give_output(0);
+    xdot = population.at(selected.at(ev)).give_output(0) * 10;
             //output[0];
-    ydot = population.at(selected.at(ev)).give_output(1);
+    ydot = population.at(selected.at(ev)).give_output(1) * 10;
             //output[1];
     //cout << NN[r][selected[r][ev]].output[0] << endl;
     //cout << "FIDODX " << fidos[r].xdot << endl;
@@ -737,10 +754,10 @@ int main()
                     NN.setup(INPUTS,HIDDEN,OUTPUTS);
                     for(int in=0; in<INPUTS; in++){
                 if(in<4){
-                    NN.take_in_min_max(0,num_ROVERS);
+                    NN.take_in_min_max(0,15);
                 }
                 if(in>=4){
-                    NN.take_in_min_max(0,500);
+                    NN.take_in_min_max(0,15);
                 }
             }
             for (int out = 0; out<OUTPUTS; out++){
@@ -814,7 +831,10 @@ int main()
 
 				/// ACT
 				//cout << "ACT!" << endl;
-				print_rover_locations(pFILE1, fidos);
+				if (gen == 19){
+					print_rover_locations(pFILE1, fidos);
+				}
+
 				for (int r = 0; r<num_ROVERS; r++)
 				{
                                     fidos.at(r).act();
