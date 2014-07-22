@@ -136,14 +136,14 @@ public:
 	void move();
 	void full_red_sensor(landmark*);
 	void full_blue_sensor(landmark*);
-	void full_rover_sensor(vector<rover>);
+	void full_rover_sensor(vector<rover>&);
 
 
 	double local_red;
 	double local_blue;
         
         /// high-level functions
-        void sense(landmark* POIs, vector<rover> fidos);
+        void sense(landmark* POIs, vector<rover>& fidos);
         void decide(int);
         void act();
         void react(landmark* POIs);
@@ -167,7 +167,7 @@ public:
 	void reset();
 
 
-	int find_kth_closest_rover(int, vector<rover>);
+	int find_kth_closest_rover(int, vector<rover>&);
 	double find_dist_to_rover(int, vector<rover>&);
 	int find_kth_closest_rover_not_i(int, int, vector<rover>);
 	void find_dist_to_all_rovers(vector<rover>&);
@@ -194,7 +194,7 @@ void landmark::reset()
 	blue_value = start_blue;
 }
 
-int landmark::find_kth_closest_rover(int k, vector<rover> fidos)
+int landmark::find_kth_closest_rover(int k, vector<rover>& fidos)
 {
 	int closest;
 	double closest_distance;
@@ -379,7 +379,7 @@ int deterministic_and_random_place(vector<rover>& fidos)
 		cout << x << " " << y << " " << heading << endl;
 		fidos.at(num_ROVERS-j).place(x, y, heading);
 	}
-
+	return 0;
 }
 
 int rover::basic_sensor(double roverx, double rovery, double rover_heading, double tarx, double tary)
@@ -513,7 +513,7 @@ void rover::full_blue_sensor(landmark* POIs)
         }
 }
 
-void rover::full_rover_sensor(vector<rover> fidos)
+void rover::full_rover_sensor(vector<rover>& fidos)
 {
 	int quadrant;
 	for (int i = 0; i < QUADRANTS; i++)
@@ -639,7 +639,7 @@ void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y)
 vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r);
 void expand_population(vector<neural_network>* pNN, int r, vector<double>);
 
-void rover::sense(landmark* POIs, vector<rover> fidos){
+void rover::sense(landmark* POIs, vector<rover>& fidos){
     //cout << "sensing " << r << endl;
     full_blue_sensor(POIs);
     full_red_sensor(POIs);
