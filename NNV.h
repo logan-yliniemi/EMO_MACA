@@ -14,8 +14,8 @@
 #include <map>
 
 #define LYRAND ((double)rand()/RAND_MAX)
-//#define BEGIN (sqrt(5))
-#define BEGIN 0.01
+#define BEGIN (sqrt(5))
+//#define BEGIN 0.01
 
 using namespace std;
 
