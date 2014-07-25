@@ -14,8 +14,8 @@
 #include <map>
 
 #define LYRAND ((double)rand()/RAND_MAX)
-//#define BEGIN (sqrt(5))
-#define BEGIN 0.01
+#define BEGIN (sqrt(5))
+//#define BEGIN 0.01
 
 using namespace std;
 
@@ -55,8 +55,8 @@ double cosine(double inp){
 
 
 
-//#define WEIGHTSTEP (0.2)
-double WEIGHTSTEP;
+#define WEIGHTSTEP (0.2)
+//double WEIGHTSTEP;
 
 int ctr_1=0;
 
