@@ -25,18 +25,28 @@
 #define num_ROVERS 4
 #define DETERMINISTICALLY_PLACED 0 // If more than num_ROVERS, will deterministcally place all rovers
 
+<<<<<<< HEAD
 #define DO_NSGA 1
 #define TIMESTEPS 10
 #define GENERATIONS 1
+=======
+#define TIMESTEPS 4
+#define GENERATIONS 2500
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 
-#define ROVERWATCH 0 // Index of rover to watch.
+#define ROVERWATCH 0
+#define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
+<<<<<<< HEAD
 #define EVOPOP 5
+=======
+#define EVOPOP 100
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 
 using namespace std;
 
@@ -325,6 +335,7 @@ void rover::move()
 	xresolve(x);
 	yresolve(y);
 	heading = atan2(ydot, xdot);
+    ///@DW Rotating movement
 }
 
 int rover::place(double xspot, double yspot, double head)
@@ -357,22 +368,33 @@ int rover::place(double xspot, double yspot, double head)
 int deterministic_and_random_place(vector<rover>& fidos)
 {
 	// pseudo-randomly place a number of rovers
-	srand(1);
+	//srand(1);
+    
 	double x, y, heading;
+    vector<double> xlist = {40, 50, 50, 60};
+    vector<double> ylist = {50, 40, 60, 50};
+    vector<double> hlist = {0,  0,  0,  0,};
+    if(DETERMINISTICALLY_PLACED>xlist.size()){
+        cout << "UMMMM" << endl;
+    }
+    
 	for (int i = 0; i < DETERMINISTICALLY_PLACED; i++)
 	{
 		if (i == num_ROVERS)
 			return 0;
-		x = rand() % 101;
-		y = rand() % 101;
-		heading = rand() % 361 * pi / 180;
+		x=xlist.at(i);
+        y=ylist.at(i);
+        heading=hlist.at(i);
+        //x = rand() % 101;
+		//y = rand() % 101;
+		//heading = rand() % 361 * pi / 180;
 		cout << x << " " << y << " " << heading << endl;
 		fidos.at(i).place(x, y, heading);
 	}
 
 	// randomly place the rest of the rovers
 	int left_over = num_ROVERS - DETERMINISTICALLY_PLACED;
-	srand(time(NULL));
+	//srand(time(NULL));
 	for (int j = left_over; j > 0; j--)
 	{
 		x = rand() % 101;
@@ -475,6 +497,7 @@ void rover::full_red_sensor(landmark* POIs)
 
 		red_state[quadrant] += str;
 	}
+<<<<<<< HEAD
 //        if(ID == ROVERWATCH){
 //            cout << "ROVER " << ROVERWATCH << " RED STATE" << endl;
 //            for(int i=0; i<QUADRANTS; i++){
@@ -482,6 +505,15 @@ void rover::full_red_sensor(landmark* POIs)
 //            }
 //            cout << endl;
 //        }
+=======
+        if(ROVERWATCH && ID == ROVERWATCHDEX){
+            cout << "ROVER " << ROVERWATCHDEX << " RED STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << red_state[i] << "\t";
+            }
+            cout << endl;
+        }
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 //	for (int i = 0; i < QUADRANTS; i++)
 //	{
 //		cout << red_state[i] << "\t";
@@ -506,6 +538,7 @@ void rover::full_blue_sensor(landmark* POIs)
 
 		blue_state[quadrant] += str;
 	}
+<<<<<<< HEAD
 //        if(ID == ROVERWATCH){
 //            cout << "ROVER " << ROVERWATCH << " BLUE STATE" << endl;
 //            for(int i=0; i<QUADRANTS; i++){
@@ -513,6 +546,15 @@ void rover::full_blue_sensor(landmark* POIs)
 //            }
 //            cout << endl;
 //        }
+=======
+        if(ROVERWATCH && ID == ROVERWATCHDEX){
+            cout << "ROVER " << ROVERWATCHDEX << " BLUE STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << blue_state[i] << "\t";
+            }
+            cout << endl;
+        }
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 }
 
 void rover::full_rover_sensor(vector<rover>& fidos)
@@ -536,6 +578,7 @@ void rover::full_rover_sensor(vector<rover>& fidos)
 
 		rover_state[quadrant] += str;
 	}
+<<<<<<< HEAD
 //        if(ID == ROVERWATCH){
 //            cout << "ROVER " << ROVERWATCH << " ROVER STATE" << endl;
 //            for(int i=0; i<QUADRANTS; i++){
@@ -543,6 +586,15 @@ void rover::full_rover_sensor(vector<rover>& fidos)
 //            }
 //            cout << endl;
 //       }
+=======
+        if(ROVERWATCH && ID == ROVERWATCHDEX){
+            cout << "ROVER " << ROVERWATCHDEX << " ROVER STATE" << endl;
+            for(int i=0; i<QUADRANTS; i++){
+                cout << rover_state[i] << "\t";
+            }
+            cout << endl;
+        }
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 }
 
 void clear_rewards(vector<rover>& fidos)
@@ -624,7 +676,11 @@ void print_rover_locations(FILE * pFILE1, vector<rover>& fidos)
 
 	for (int j = 0; j < num_ROVERS * 2; j++)
 	{
+<<<<<<< HEAD
 		fprintf(pFILE1, "%.4f\t", temp_store.at(j));
+=======
+		fprintf(pFILE1, "%.2f\t", temp_store.at(j));
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 	}
 
 	fprintf(pFILE1, "\n");
@@ -704,11 +760,12 @@ int main()
 {
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
+    WEIGHTSTEP=0.2;
 	
 	FILE * pFILE1 = fopen("rover_locations.txt", "w");
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
 	
-        /// BGN Create Landmarks
+    /// BGN Create Landmarks
 	landmark POIs[num_POI];
 
 	/// x, y, r, b;
@@ -730,9 +787,10 @@ int main()
         /// END Create Landmarks
         
         /// BGN Create Rovers
-        vector<rover> fidos(num_ROVERS);
-        //vector<rover>* pfidos = &fidos;
-	/// x,y,h
+    vector<rover> fidos(num_ROVERS);
+    vector<rover>* pfidos = &fidos;
+	
+    /// x,y,h
 	for (int r = 0; r<num_ROVERS; r++)
 	{
                 fidos.at(r).reset();
@@ -811,8 +869,12 @@ int main()
 				//cout << "Sense!" << endl;		
 				for (int r = 0; r<num_ROVERS; r++)
 				{
+<<<<<<< HEAD
 									fidos.at(r).heading = 0;
                                     fidos.at(r).sense(POIs,fidos);
+=======
+                    fidos.at(r).sense(POIs,fidos);
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 				}
 
 				/// DECIDE
@@ -820,18 +882,22 @@ int main()
 				//cout << "Decide!" << endl;
 				for (int r = 0; r<num_ROVERS; r++)
 				{
-                                    fidos.at(r).decide(ev);
+                    fidos.at(r).decide(ev);
 				}
 
 				/// ACT
 				//cout << "ACT!" << endl;
+<<<<<<< HEAD
 				if (gen == GENERATIONS - 1){
+=======
+				if (gen == (GENERATIONS-1)){
+>>>>>>> e8cd7a9a74573eb024e151abe183a9cd19279118
 					print_rover_locations(pFILE1, fidos);
 				}
 
 				for (int r = 0; r<num_ROVERS; r++)
 				{
-                                    fidos.at(r).act();
+                    fidos.at(r).act();
 				}
 
 				/// REACT
