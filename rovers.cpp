@@ -23,11 +23,11 @@
 
 #define num_POI 4
 #define num_ROVERS 4
-#define DETERMINISTICALLY_PLACED 0 // If more than num_ROVERS, will deterministcally place all rovers
+#define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define DO_NSGA 1
 #define TIMESTEPS 10
-#define GENERATIONS 1
+#define GENERATIONS 500
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
@@ -37,7 +37,7 @@
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 5
+#define EVOPOP 20
 
 using namespace std;
 
@@ -124,6 +124,7 @@ public:
 	double blue_state[QUADRANTS];
 	double red_state[QUADRANTS];
 	vector<double> sum_global_red, sum_global_blue;
+	vector<double> temp_sum_global_red, temp_sum_global_blue;
 	vector<double> global_chunks, global_red_chunks, global_blue_chunks;
 	vector<double> difference_chunks;
 	vector<double> perfectly_learnable_chunks;
@@ -560,6 +561,8 @@ void clear_rewards(vector<rover>& fidos)
 	for (int i = 0; i < num_ROVERS; i++)
 	{
 		fidos.at(i).global_chunks.clear();
+		fidos.at(i).global_red_chunks.clear();
+		fidos.at(i).global_blue_chunks.clear();
 		fidos.at(i).perfectly_learnable_chunks.clear();
 		fidos.at(i).difference_chunks.clear();
 	}
@@ -620,6 +623,21 @@ void rover_place_test(vector<rover>& fidos)
 FILE* open_files(){
 	FILE* pFILE = fopen("Testing.txt", "w");
 	return pFILE;
+}
+
+void print_fitnesses(FILE *pFILE3, vector<rover>& fidos)
+{
+	static int thisint;
+	fprintf(pFILE3, "%s\t%i\n", "!!!!!!!!!!!!!!!!!!!!!GEN", thisint);
+	for (int iii = 0; iii < EVOPOP; iii++){
+		for (int rove = 0; rove < num_ROVERS; rove++){
+			int spot = fidos.at(rove).selected.at(iii);
+			fprintf(pFILE3, "%.4f\n", fidos.at(rove).population.at(spot).get_fitness());
+			//cout << fidos.at(rove).population.at(spot).get_fitness() << endl;
+		}
+		fprintf(pFILE3, "%s\t%i\n", "Evopop", iii);
+	}
+	thisint++;
 }
 
 void print_rover_locations(FILE * pFILE1, vector<rover>& fidos)
@@ -717,6 +735,7 @@ int main()
 
 	FILE * pFILE1 = fopen("rover_locations.txt", "w");
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
+	FILE * pFILE3 = fopen("fitnesses.txt", "w");
 
 	/// BGN Create Landmarks
 	landmark POIs[num_POI];
@@ -874,6 +893,7 @@ int main()
 
 					global += red_observation_value + blue_observation_value;
 					global_red += red_observation_value;
+					//cout << global_red << endl;
 					global_blue += blue_observation_value;
 
 					//cout << "at distance " << distance << endl;
@@ -919,7 +939,12 @@ int main()
 				sum_perfect.push_back(accumulate(fidos.at(i).perfectly_learnable_chunks.begin(), fidos.at(i).perfectly_learnable_chunks.end(), 0.0));
 				sum_difference.push_back(accumulate(fidos.at(i).difference_chunks.begin(), fidos.at(i).difference_chunks.end(), 0.0));
 			}
-
+			for (int i = 0; i < num_ROVERS; i++)
+			{
+				//cout << fidos.at(i).sum_global_red.size() << endl;
+				//cout << fidos.at(i).sum_global_red.at(ev) << " " << fidos.at(i).sum_global_blue.at(ev) << endl;
+			}
+			/*
 			for (int r = 0; r<num_ROVERS; r++)
 			{
 				//VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
@@ -927,6 +952,7 @@ int main()
 				//VVNN.at(r).at(selected[r][ev]).set_fitness(sum_global.at(r));
 				//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
 			}
+			*/
 			sum_global.clear();
 			sum_perfect.clear();
 			sum_difference.clear();
@@ -934,9 +960,8 @@ int main()
 		/// END EVOPOP LOOP
 
 		if (DO_NSGA){
-			NSGA.NSGA_reset();
-
 			for (int r = 0; r < num_ROVERS; r++) {
+				NSGA.NSGA_reset();
 				for (int ev = 0; ev < EVOPOP; ev++) {
 					vector<double> afit;
 					afit.push_back(fidos.at(r).sum_global_red.at(ev));
@@ -945,21 +970,30 @@ int main()
 				}
 				NSGA.execute();
 				for (int ev = 0; ev < EVOPOP; ev++) {
-					//fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(NSGA.NSGA_member_fitness(ev));
+					fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(NSGA.NSGA_member_fitness(ev));
 				}
 			}
 		}
 
+		for (int i = 0; i < num_ROVERS; i++)
+		{
+			fidos.at(i).sum_global_red.clear();
+			fidos.at(i).sum_global_blue.clear();
+		}
 
 		//cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
+		
+		print_fitnesses(pFILE3, fidos);
+
 		/*
 		for (int iii = 0; iii < EVOPOP; iii++){
-		for (int rove = 0; rove < num_ROVERS; rove++){
-		int spot = fidos.at(rove).selected.at(iii);
-		cout << "!!!!!!!" << fidos.at(rove).population.at(spot).get_fitness() << endl;
-		}
+			for (int rove = 0; rove < num_ROVERS; rove++){
+				int spot = fidos.at(rove).selected.at(iii);
+			cout << "!!!!!!!" << fidos.at(rove).population.at(spot).get_fitness() << endl;
+			}
 		}
 		*/
+		
 		for (int r = 0; r<num_ROVERS; r++)
 		{
 			vector<neural_network>* pVNN = &fidos.at(r).population;
