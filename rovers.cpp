@@ -13,6 +13,7 @@
 #include <numeric>
 #include "NNV.h"
 #include "NSGAheader.h"
+//#include "SPEAheader.h"
 
 #define pi 3.141529
 #define QUADRANTS 4
@@ -27,9 +28,11 @@
 
 #define TELEPORTATION 1
 
-#define DO_NSGA 0
-#define TIMESTEPS 2
-#define GENERATIONS 5000
+#define DO_NSGA 1
+#define DO_SPEA 0
+#define TIMESTEPS 4
+#define GENERATIONS 500
+#define STAT_RUN 1
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
@@ -39,7 +42,7 @@
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 100
+#define EVOPOP 50
 
 using namespace std;
 
@@ -128,8 +131,12 @@ public:
 	vector<double> sum_global_red, sum_global_blue;
 	vector<double> temp_sum_global_red, temp_sum_global_blue;
 	vector<double> global_chunks, global_red_chunks, global_blue_chunks;
-	vector<double> difference_chunks;
-	vector<double> perfectly_learnable_chunks;
+	vector<double> perfectly_learnable_chunks, perfectly_learnable_chunks_red, perfectly_learnable_chunks_blue;
+	vector<double> difference_chunks, difference_chunks_red, difference_chunks_blue;
+	vector<double> sum_difference_red, sum_difference_blue;
+	vector<double> store_x, store_y;
+	vector< vector<double> > policy_positions_x, policy_positions_y;
+	vector<int> store_dex;
 
 	vector<neural_network> population;
 	vector<int> selected;
@@ -568,6 +575,24 @@ void rover::full_rover_sensor(vector<rover>& fidos)
 	//       }
 }
 
+void store_timestep_locations(vector<rover>& fidos)
+{
+	for (int i = 0; i < num_ROVERS; i++)
+	{
+		fidos.at(i).store_x.push_back(fidos.at(i).x);
+		fidos.at(i).store_y.push_back(fidos.at(i).y);
+	}
+}
+
+void store_policy_locations(vector<rover>& fidos)
+{
+	for (int i = 0; i < num_ROVERS; i++)
+	{
+		fidos.at(i).policy_positions_x.push_back(fidos.at(i).store_x);
+		fidos.at(i).policy_positions_y.push_back(fidos.at(i).store_y);
+	}
+}
+
 void clear_rewards(vector<rover>& fidos)
 {
 	for (int i = 0; i < num_ROVERS; i++)
@@ -577,6 +602,8 @@ void clear_rewards(vector<rover>& fidos)
 		fidos.at(i).global_blue_chunks.clear();
 		fidos.at(i).perfectly_learnable_chunks.clear();
 		fidos.at(i).difference_chunks.clear();
+		fidos.at(i).difference_chunks_red.clear();
+		fidos.at(i).difference_chunks_blue.clear();
 	}
 }
 
@@ -637,21 +664,6 @@ FILE* open_files(){
 	return pFILE;
 }
 
-void print_fitnesses(FILE *pFILE3, vector<rover>& fidos)
-{
-	static int thisint;
-	fprintf(pFILE3, "%s\t%i\n", "!!!!!!!!!!!!!!!!!!!!!GEN", thisint);
-	for (int iii = 0; iii < EVOPOP; iii++){
-		for (int rove = 0; rove < num_ROVERS; rove++){
-			int spot = fidos.at(rove).selected.at(iii);
-			fprintf(pFILE3, "%.4f\n", fidos.at(rove).population.at(spot).get_fitness());
-			//cout << fidos.at(rove).population.at(spot).get_fitness() << endl;
-		}
-		fprintf(pFILE3, "%s\t%i\n", "Evopop", iii);
-	}
-	thisint++;
-}
-
 void print_rover_locations(FILE * pFILE1, vector<rover>& fidos)
 {
 	vector<double> temp_store;
@@ -672,13 +684,41 @@ void print_rover_locations(FILE * pFILE1, vector<rover>& fidos)
 
 void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y)
 {
-	for (int i = 0; i < num_POI; i++)
-	{
-		fprintf(pFILE2, "%.2f\t%.2f\n", x.at(i), y.at(i));
+	static int once = 1;
+	if (once == 1){
+		for (int i = 0; i < num_POI; i++)
+		{
+			fprintf(pFILE2, "%.4f\t%.4f\n", x.at(i), y.at(i));
+		}
+	}
+	once++;
+}
+
+void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
+{
+	fprintf(pFILE3, "%s\t%d\n", "!!!!!!!!!!!!!!!!!!!!!GEN", gen);
+	for (int iii = 0; iii < EVOPOP; iii++){
+		for (int rove = 0; rove < num_ROVERS; rove++){
+			int spot = fidos.at(rove).selected.at(iii);
+			fprintf(pFILE3, "%.4f\n", fidos.at(rove).population.at(spot).get_fitness());
+			//cout << fidos.at(rove).population.at(spot).get_fitness() << endl;
+		}
+		fprintf(pFILE3, "%s\t%i\n", "Evopop", iii);
 	}
 }
 
-vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r);
+void print_red_blue_statrun(FILE * pFILE4, vector<rover>& fidos, int stat_run)
+{
+	for (int i = 0; i < num_ROVERS; i++)
+	{
+		for (int ev = 0; ev < EVOPOP; ev++)
+		{
+			fprintf(pFILE4, "%.5f\t%.5f\t%d\n", fidos.at(i).sum_global_red.at(ev), fidos.at(i).sum_global_blue.at(ev), stat_run);
+		}
+	}
+}
+
+vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r, vector<rover>& fidos);
 void expand_population(vector<neural_network>* pNN, int r, vector<double>);
 
 void rover::sense(landmark* POIs, vector<rover>& fidos){
@@ -757,278 +797,344 @@ int main()
 	FILE * pFILE1 = fopen("rover_locations.txt", "w");
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
 	FILE * pFILE3 = fopen("fitnesses.txt", "w");
+	FILE * pFILE4 = fopen("red_blue_statrun.txt", "w");
 
-	/// BGN Create Landmarks
-	landmark POIs[num_POI];
-
-	/// x, y, r, b;
-	POIs[0].create(10, 10, 10, 10);
-	POIs[1].create(10, 90, 0, 100);
-	POIs[2].create(90, 10, 100, 0);
-	POIs[3].create(90, 90, 100, 100);
-
-	vector<double> poi_x_locations;
-	vector<double> poi_y_locations;
-
-	for (int j = 0; j < num_POI; j++)
+	for (int stat_run = 0; stat_run < STAT_RUN; stat_run++)
 	{
-		poi_x_locations.push_back(POIs[j].x);
-		poi_y_locations.push_back(POIs[j].y);
-	}
 
-	print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
-	/// END Create Landmarks
+		/// BGN Create Landmarks
+		landmark POIs[num_POI];
 
-	/// BGN Create Rovers
-	vector<rover> fidos(num_ROVERS);
-	vector<rover>* pfidos = &fidos;
+		/// x, y, r, b;
+		POIs[0].create(10, 10, 10, 10);
+		POIs[1].create(10, 90, 0, 100);
+		POIs[2].create(90, 10, 100, 0);
+		POIs[3].create(90, 90, 100, 100);
 
-	/// x,y,h
-	for (int r = 0; r<num_ROVERS; r++)
-	{
-		fidos.at(r).reset();
-		fidos.at(r).population.clear();
-		neural_network NN;
+		vector<double> poi_x_locations;
+		vector<double> poi_y_locations;
 
-		/// Set up neural network
-        if(TELEPORTATION==0){
-		NN.clean();
-		NN.setup(INPUTS, HIDDEN, OUTPUTS);
-		for (int in = 0; in<INPUTS; in++){
-			if (in<4){
-				NN.take_in_min_max(0, 15);
-			}
-			if (in >= 4){
-				NN.take_in_min_max(0, 15);
-			}
-		}
-		for (int out = 0; out<OUTPUTS; out++){
-			NN.take_out_min_max(-XMAX / 10, XMAX / 10);
-		}
-        }
-        if(TELEPORTATION==1){
-            NN.clean();
-            NN.setup(0,HIDDEN,OUTPUTS);
-            for (int out = 0; out<OUTPUTS; out++){
-                NN.take_out_min_max((double)-0.1*XMAX,(double)1.1*XMAX);
-            }
-        }
-
-		/// create population of neural networks.
-		for (int p = 0; p<EVOPOP; p++){
-			fidos.at(r).population.push_back(NN);
-			fidos.at(r).selected.push_back(p);
-		}
-	}
-
-	deterministic_and_random_place(fidos);
-	//rover_place_test(fidos);
-	/// END Create Rovers
-
-	cout << "done with inputsoutputs scaling" << endl;
-
-	NSGA_2 NSGA;
-	NSGA.declare_NSGA_dimension(2);
-
-	vector<double> sum_global;
-	vector<double> sum_perfect;
-	vector<double> sum_difference;
-
-	cout << "Preliminaries completed" << endl;
-	for (int gen = 0; gen<GENERATIONS; gen++)
-	{
-		cout << "Beginning Generation " << gen << endl;
-		for (int r = 0; r<num_ROVERS; r++)
+		for (int j = 0; j < num_POI; j++)
 		{
-			int SWAPS = 100;
-			for (int i = 0; i<SWAPS; i++)
-			{
-				int p1 = rand() % EVOPOP;
-				int p2 = rand() % EVOPOP;
-				int holder;
+			poi_x_locations.push_back(POIs[j].x);
+			poi_y_locations.push_back(POIs[j].y);
+		}
 
-				holder = fidos.at(r).selected.at(p1);
-				fidos.at(r).selected.at(p1) = fidos.at(r).selected.at(p2);
-				fidos.at(r).selected.at(p2) = holder;
+		print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
+		/// END Create Landmarks
+
+		/// BGN Create Rovers
+		vector<rover> fidos(num_ROVERS);
+		vector<rover>* pfidos = &fidos;
+
+		/// x,y,h
+		for (int r = 0; r < num_ROVERS; r++)
+		{
+			fidos.at(r).reset();
+			fidos.at(r).population.clear();
+			neural_network NN;
+
+			/// Set up neural network
+			if (TELEPORTATION == 0){
+				NN.clean();
+				NN.setup(INPUTS, HIDDEN, OUTPUTS);
+				for (int in = 0; in < INPUTS; in++){
+					if (in < 4){
+						NN.take_in_min_max(0, 15);
+					}
+					if (in >= 4){
+						NN.take_in_min_max(0, 15);
+					}
+				}
+				for (int out = 0; out < OUTPUTS; out++){
+					NN.take_out_min_max(-XMAX / 10, XMAX / 10);
+				}
+			}
+			if (TELEPORTATION == 1){
+				NN.clean();
+				NN.setup(0, HIDDEN, OUTPUTS);
+				for (int out = 0; out < OUTPUTS; out++){
+					NN.take_out_min_max((double)-0.1*XMAX, (double)1.1*XMAX);
+				}
+			}
+
+			/// create population of neural networks.
+			for (int p = 0; p < EVOPOP; p++){
+				fidos.at(r).population.push_back(NN);
+				fidos.at(r).selected.push_back(p);
 			}
 		}
 
-		for (int ev = 0; ev<EVOPOP; ev++)
-		{
-			clear_rewards(fidos);
+		deterministic_and_random_place(fidos);
+		//rover_place_test(fidos);
+		/// END Create Rovers
 
-			for (int k = 0; k<num_ROVERS; k++)
+		cout << "done with inputsoutputs scaling" << endl;
+
+		NSGA_2 NSGA;
+		NSGA.declare_NSGA_dimension(2);
+
+		vector<double> sum_global;
+		vector<double> sum_perfect;
+		vector<double> sum_difference;
+
+		cout << "Preliminaries completed" << endl;
+		for (int gen = 0; gen < GENERATIONS; gen++)
+		{
+			cout << "Beginning Generation " << gen << endl;
+			for (int r = 0; r < num_ROVERS; r++)
 			{
-				fidos.at(k).replace();
+				int SWAPS = 100;
+				for (int i = 0; i < SWAPS; i++)
+				{
+					int p1 = rand() % EVOPOP;
+					int p2 = rand() % EVOPOP;
+					int holder;
+
+					holder = fidos.at(r).selected.at(p1);
+					fidos.at(r).selected.at(p1) = fidos.at(r).selected.at(p2);
+					fidos.at(r).selected.at(p2) = holder;
+				}
 			}
 
-			for (int t = 0; t<TIMESTEPS; t++)
+			for (int ev = 0; ev < EVOPOP; ev++)
 			{
-				//if(t%100==0){
-				//cout << "." << flush;}
+				clear_rewards(fidos);
 
-				/// SENSE
-				//cout << "Sense!" << endl;		
-				for (int r = 0; r<num_ROVERS; r++)
+				for (int k = 0; k < num_ROVERS; k++)
 				{
-					fidos.at(r).heading = 0;
-					fidos.at(r).sense(POIs, fidos);
+					fidos.at(k).replace();
 				}
 
-				/// DECIDE
-				// Run the neural network here.
-				//cout << "Decide!" << endl;
-				for (int r = 0; r<num_ROVERS; r++)
+				for (int t = 0; t < TIMESTEPS; t++)
 				{
-					fidos.at(r).decide(ev);
-				}
+					//if(t%100==0){
+					//cout << "." << flush;}
 
-				/// ACT
-				//cout << "ACT!" << endl;
-				if (gen == GENERATIONS - 1){
-					print_rover_locations(pFILE1, fidos);
-				}
-
-				for (int r = 0; r<num_ROVERS; r++)
-				{
-					fidos.at(r).act();
-				}
-
-				/// REACT
-				//cout << "REACT!" << endl;
-				double red_observation_value = 0, blue_observation_value = 0;
-				double global_red = 0;
-				double global_blue = 0;
-				double global = 0;
-
-				for (int i = 0; i<num_POI; i++)
-				{
-					//cout << "begin react " << i << endl;
-					POIs[i].find_dist_to_all_rovers(fidos);
-
-					for (int j = 0; j < num_ROVERS; j++)
+					/// SENSE
+					//cout << "Sense!" << endl;		
+					for (int r = 0; r < num_ROVERS; r++)
 					{
-						red_observation_value += POIs[i].calc_red_observation_value(POIs[i].distances.at(j));
-						blue_observation_value += POIs[i].calc_blue_observation_value(POIs[i].distances.at(j));
+						fidos.at(r).heading = 0;
+						fidos.at(r).sense(POIs, fidos);
 					}
 
-					global += red_observation_value + blue_observation_value;
-					global_red += red_observation_value;
-					//cout << global_red << endl;
-					global_blue += blue_observation_value;
+					/// DECIDE
+					// Run the neural network here.
+					//cout << "Decide!" << endl;
+					for (int r = 0; r < num_ROVERS; r++)
+					{
+						fidos.at(r).decide(ev);
+					}
 
-					//cout << "at distance " << distance << endl;
-					//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
-					//cout << "blue value of " << blue_observation_value << " assigned to rover " << assignee << endl;
-					//cout << "end react " << i << endl;
+					/// ACT
+					//cout << "ACT!" << endl;
+					if (gen == GENERATIONS - 1 && STAT_RUN == 1){
+						print_rover_locations(pFILE1, fidos);
+						store_timestep_locations(fidos);
+					}
+
+					for (int r = 0; r < num_ROVERS; r++)
+					{
+						fidos.at(r).act();
+					}
+
+					/// REACT
+					//cout << "REACT!" << endl;
+					double red_observation_value = 0, blue_observation_value = 0;
+					double global_red = 0;
+					double global_blue = 0;
+					double global = 0;
+
+					for (int i = 0; i < num_POI; i++)
+					{
+						//cout << "begin react " << i << endl;
+						POIs[i].find_dist_to_all_rovers(fidos);
+
+						for (int j = 0; j < num_ROVERS; j++)
+						{
+							red_observation_value += POIs[i].calc_red_observation_value(POIs[i].distances.at(j));
+							blue_observation_value += POIs[i].calc_blue_observation_value(POIs[i].distances.at(j));
+						}
+
+						//global += red_observation_value + blue_observation_value;
+						global_red += red_observation_value;
+						//cout << global_red << endl;
+						global_blue += blue_observation_value;
+
+						//cout << "at distance " << distance << endl;
+						//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
+						//cout << "blue value of " << blue_observation_value << " assigned to rover " << assignee << endl;
+						//cout << "end react " << i << endl;
+					}
+
+					//uses the distances to each rover to find the perfectly learnable reward and difference rewards
+					for (int i = 0; i < num_ROVERS; i++)
+					{
+						double P_i = 0, P_i_red = 0, P_i_blue = 0;
+						double counterfactual = global, c_f_red = global_red, c_f_blue = global_blue;
+						for (int j = 0; j < num_POI; j++)
+						{
+							//P_i += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+							//P_i += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+							P_i_red += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+							P_i_blue += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+
+							if (POIs[j].distances.at(i) < POIs[j].max_obs_distance)
+							{
+								//counterfactual -= POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+								//counterfactual -= POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+								c_f_red -= POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+								c_f_blue -= POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+							}
+						}
+						//fidos.at(i).global_chunks.push_back(global);
+						fidos.at(i).global_red_chunks.push_back(global_red);
+						fidos.at(i).global_blue_chunks.push_back(global_blue);
+
+						//fidos.at(i).perfectly_learnable_chunks.push_back(P_i);
+						//fidos.at(i).perfectly_learnable_chunks_red.push_back(P_i_red);
+						//fidos.at(i).perfectly_learnable_chunks_blue.push_back(P_i_blue);
+
+						//fidos.at(i).difference_chunks.push_back(counterfactual);
+						fidos.at(i).difference_chunks_red.push_back(c_f_red);
+						fidos.at(i).difference_chunks_blue.push_back(c_f_blue);
+					}
 				}
 
-				//uses the distances to each rover to find the perfectly learnable reward and difference rewards
+				/// END TIMESTEP LOOP
+
+				//////
 				for (int i = 0; i < num_ROVERS; i++)
 				{
-					double P_i = 0;
-					double counterfactual = global;
-					for (int j = 0; j < num_POI; j++)
-					{
-						P_i += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
-						P_i += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
-						if (POIs[j].distances.at(i) < POIs[j].max_obs_distance)
-						{
-							counterfactual -= POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
-							counterfactual -= POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
-						}
-					}
-					fidos.at(i).global_chunks.push_back(global);
-					fidos.at(i).global_red_chunks.push_back(global_red);
-					fidos.at(i).global_blue_chunks.push_back(global_blue);
-					fidos.at(i).perfectly_learnable_chunks.push_back(P_i);
-					fidos.at(i).difference_chunks.push_back(counterfactual);
+					fidos.at(i).sum_global_red.push_back(accumulate(fidos.at(i).global_red_chunks.begin(), fidos.at(i).global_red_chunks.end(), 0.0));
+					fidos.at(i).sum_global_blue.push_back(accumulate(fidos.at(i).global_blue_chunks.begin(), fidos.at(i).global_blue_chunks.end(), 0.0));
+					//sum_global.push_back(accumulate(fidos.at(i).global_chunks.begin(), fidos.at(i).global_chunks.end(), 0.0));
+
+					//sum_perfect.push_back(accumulate(fidos.at(i).perfectly_learnable_chunks.begin(), fidos.at(i).perfectly_learnable_chunks.end(), 0.0));
+
+					//sum_difference.push_back(accumulate(fidos.at(i).difference_chunks.begin(), fidos.at(i).difference_chunks.end(), 0.0));
+					fidos.at(i).sum_difference_red.push_back(accumulate(fidos.at(i).difference_chunks_red.begin(), fidos.at(i).difference_chunks_red.end(), 0.0));
+					fidos.at(i).sum_difference_blue.push_back(accumulate(fidos.at(i).difference_chunks_blue.begin(), fidos.at(i).difference_chunks_blue.end(), 0.0));
 				}
-			}
+				for (int i = 0; i < num_ROVERS; i++)
+				{
+					//cout << fidos.at(i).sum_global_red.size() << endl;
+					//cout << fidos.at(i).sum_global_red.at(ev) << " " << fidos.at(i).sum_global_blue.at(ev) << endl;
+				}
 
-			/// END TIMESTEP LOOP
-
-			//////
-			for (int i = 0; i < num_ROVERS; i++)
-			{
-				fidos.at(i).sum_global_red.push_back(accumulate(fidos.at(i).global_red_chunks.begin(), fidos.at(i).global_red_chunks.end(), 0.0));
-				fidos.at(i).sum_global_blue.push_back(accumulate(fidos.at(i).global_blue_chunks.begin(), fidos.at(i).global_blue_chunks.end(), 0.0));
-				sum_global.push_back(accumulate(fidos.at(i).global_chunks.begin(), fidos.at(i).global_chunks.end(), 0.0));
-				sum_perfect.push_back(accumulate(fidos.at(i).perfectly_learnable_chunks.begin(), fidos.at(i).perfectly_learnable_chunks.end(), 0.0));
-				sum_difference.push_back(accumulate(fidos.at(i).difference_chunks.begin(), fidos.at(i).difference_chunks.end(), 0.0));
-			}
-			for (int i = 0; i < num_ROVERS; i++)
-			{
-				//cout << fidos.at(i).sum_global_red.size() << endl;
-				//cout << fidos.at(i).sum_global_red.at(ev) << " " << fidos.at(i).sum_global_blue.at(ev) << endl;
-			}
-			/*
-			for (int r = 0; r<num_ROVERS; r++)
-			{
+				store_policy_locations(fidos);
+				for (int i = 0; i < num_ROVERS; i++)
+				{
+					fidos.at(i).store_x.clear();
+					fidos.at(i).store_y.clear();
+				}
+				/*
+				for (int r = 0; r<num_ROVERS; r++)
+				{
 				//VVNN.at(r).at(selected[r][ev]).set_fitness(fidos[r].local_red + fidos[r].local_blue);
 				fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(sum_global.at(r));
 				//VVNN.at(r).at(selected[r][ev]).set_fitness(sum_global.at(r));
 				//cout << fidos[r].local_red << " " << fidos[r].local_blue << endl;
+				}
+				*/
+				sum_global.clear();
+				sum_perfect.clear();
+				sum_difference.clear();
+			}
+			/// END EVOPOP LOOP
+
+			//print_red_blue_statrun(pFILE4, fidos, stat_run);
+
+			if (DO_NSGA){
+				for (int r = 0; r < num_ROVERS; r++) {
+					NSGA.NSGA_reset();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						vector<double> afit;
+						afit.push_back(fidos.at(r).sum_global_red.at(ev));
+						afit.push_back(fidos.at(r).sum_global_blue.at(ev));
+						NSGA.vector_input(afit, ev);
+					}
+					NSGA.execute();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
+					}
+				}
+			}
+
+			/*
+			SPEA_2 SPEA;
+
+			if (DO_SPEA){
+			SPEA.vector_input(MO, a);
+			}
+
+			if (DO_SPEA){
+			for (int a = 0; a<pVA->size(); a++){
+			vector<double> MO;
+			MO.push_back(pVA->at(a).get_f1());
+			MO.push_back(pVA->at(a).get_f2());
+			SPEA.vector_input(MO, a);
+			SPEA.take_agent(pVA->at(a), a);
+			}
+
+			vector<int> survivors;
+			vector<int>* pS = &survivors;
+			SPEA.execute(pS);
+
+			pVA->clear();
+			for (int i = 0; i< pS->size(); i++){
+			int el = pS->at(i);
+			pVA->push_back(SPEA.archive.at(el).agent);
+			pVA->back().mutate();
+			}
 			}
 			*/
-			sum_global.clear();
-			sum_perfect.clear();
-			sum_difference.clear();
-		}
-		/// END EVOPOP LOOP
 
-		if (DO_NSGA){
-			for (int r = 0; r < num_ROVERS; r++) {
-				NSGA.NSGA_reset();
-				for (int ev = 0; ev < EVOPOP; ev++) {
-					vector<double> afit;
-					afit.push_back(fidos.at(r).sum_global_red.at(ev));
-					afit.push_back(fidos.at(r).sum_global_blue.at(ev));
-					NSGA.vector_input(afit, ev);
-				}
-				NSGA.execute();
-				for (int ev = 0; ev < EVOPOP; ev++) {
-					fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(NSGA.NSGA_member_fitness(ev));
-				}
+			for (int i = 0; i < num_ROVERS; i++)
+			{
+				fidos.at(i).sum_global_red.clear();
+				fidos.at(i).sum_global_blue.clear();
+				fidos.at(i).sum_difference_red.clear();
+				fidos.at(i).sum_difference_blue.clear();
 			}
-		}
 
-		for (int i = 0; i < num_ROVERS; i++)
-		{
-			fidos.at(i).sum_global_red.clear();
-			fidos.at(i).sum_global_blue.clear();
-		}
+			//cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
 
-		//cout << "This generation's best local fitness is: " << VVNN.at(0).at(selected[0][0]).get_fitness() << endl;
-		
-		print_fitnesses(pFILE3, fidos);
+			print_fitnesses(pFILE3, fidos, gen);
 
-		/*
-		for (int iii = 0; iii < EVOPOP; iii++){
+			/*
+			for (int iii = 0; iii < EVOPOP; iii++){
 			for (int rove = 0; rove < num_ROVERS; rove++){
-				int spot = fidos.at(rove).selected.at(iii);
+			int spot = fidos.at(rove).selected.at(iii);
 			cout << "!!!!!!!" << fidos.at(rove).population.at(spot).get_fitness() << endl;
 			}
-		}
-		*/
-		
-		for (int r = 0; r<num_ROVERS; r++)
-		{
-			vector<neural_network>* pVNN = &fidos.at(r).population;
-			vector<double> fit = kill_lowest_performers(pVNN, r);
-			expand_population(pVNN, r, fit);
-		}
-
-		for (int r = 0; r < num_ROVERS; r++)
-		{
-			for (int i = 0; i < EVOPOP; i++)
-			{
-				fidos.at(r).population.at(i).clean();
 			}
-		}
+			*/
 
-		/// GENERATION COMPLETED
+			for (int r = 0; r < num_ROVERS; r++)
+			{
+				vector<neural_network>* pVNN = &fidos.at(r).population;
+				vector<double> fit = kill_lowest_performers(pVNN, r, fidos);
+				//print
+				expand_population(pVNN, r, fit);
+			}
+
+			for (int r = 0; r < num_ROVERS; r++)
+			{
+				for (int i = 0; i < EVOPOP; i++)
+				{
+					fidos.at(r).population.at(i).clean();
+				}
+			}
+
+			/// GENERATION COMPLETED
+		}
 	}
+	fclose(pFILE1);
+	fclose(pFILE2);
+	fclose(pFILE3);
+	fclose(pFILE4);
 
 	//*/
 	return 0;
@@ -1036,7 +1142,7 @@ int main()
 
 
 
-vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r){
+vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r, vector<rover>& fidos){
 	//vector<int> kill;
 	/// r is the rover population we are working with.
 	/// We kill the 'n' lowest performing NNs (mark for replacement in expand_population)
@@ -1058,6 +1164,7 @@ vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r){
 			if (fitnesses.at(i) < lowest_fitness){
 				lowest_fitness = fitnesses.at(i);
 				lowest_dex = i;
+				fidos.at(r).store_dex.push_back(lowest_dex + rep);
 			}
 		}
 		/// kill lowest fitness.
