@@ -22,12 +22,14 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 4
-#define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
+#define num_ROVERS 1
+#define DETERMINISTICALLY_PLACED 1 // If more than num_ROVERS, will deterministcally place all rovers
 
-#define DO_NSGA 1
-#define TIMESTEPS 10
-#define GENERATIONS 500
+#define TELEPORTATION 1
+
+#define DO_NSGA 0
+#define TIMESTEPS 2
+#define GENERATIONS 5000
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
@@ -37,7 +39,7 @@
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 20
+#define EVOPOP 100
 
 using namespace std;
 
@@ -189,7 +191,7 @@ void landmark::create(double xpos, double ypos, double red, double blue)
 	start_red = red_value;
 	start_blue = blue_value;
 	min_obs_distance = MIN_OBS_DIST; /// LYLY ADJUSTABLE
-	max_obs_distance = XMAX / 1; /// LYLY ADJUSTABLE
+	max_obs_distance = XMAX / 10; /// LYLY ADJUSTABLE
 }
 
 void landmark::reset()
@@ -322,11 +324,21 @@ void rover::reset()
 
 void rover::move()
 {
+    if(TELEPORTATION==0){
 	x += xdot;
 	y += ydot;
 	xresolve(x);
 	yresolve(y);
-	heading = atan2(ydot, xdot);
+    heading = atan2(ydot, xdot);
+    }
+    if(TELEPORTATION==1){
+        x=xdot;
+        y=ydot;
+        heading=0;
+        if(ROVERWATCH && ID==ROVERWATCHDEX){
+        cout << x << "\t" << y << endl;
+        }
+    }
 }
 
 int rover::place(double xspot, double yspot, double head)
@@ -364,7 +376,7 @@ int deterministic_and_random_place(vector<rover>& fidos)
 	vector<double> ylist = { 50, 40, 60, 50 };
 	vector<double> hlist = { 0, 0, 0, 0, };
 	if (DETERMINISTICALLY_PLACED>xlist.size()){
-		cout << "UMMMM" << endl;
+		cout << "DETERMINISTIC PLACE ERROR" << endl;
 	}
 
 	for (int i = 0; i < DETERMINISTICALLY_PLACED; i++)
@@ -678,6 +690,7 @@ void rover::sense(landmark* POIs, vector<rover>& fidos){
 }
 
 void rover::decide(int ev){
+    if(TELEPORTATION==0){
 	vector<double> inp;
 	//inp.push_back(fidos[r].x);
 	//inp.push_back(fidos[r].y);
@@ -696,7 +709,6 @@ void rover::decide(int ev){
 
 	population.at(selected.at(ev)).clean();
 	population.at(selected.at(ev)).take_vector_input(inp);
-
 	population.at(selected.at(ev)).execute(INPUTS, OUTPUTS);
 	//NN[i].scaleoutputs();
 	//}
@@ -712,6 +724,13 @@ void rover::decide(int ev){
 	//cout << "FIDODX " << fidos[r].xdot << endl;
 	//cout << "FIDODY " << fidos[r].ydot << endl;
 	//}
+    }
+    if(TELEPORTATION==1){
+        population.at(selected.at(ev)).clean();
+        population.at(selected.at(ev)).execute(0,OUTPUTS);
+        xdot = population.at(selected.at(ev)).give_output(0);
+        ydot = population.at(selected.at(ev)).give_output(1);
+    }
 }
 
 void rover::act(){
@@ -732,6 +751,8 @@ int main()
 {
 	cout << "Hello world!" << endl;
 	srand(time(NULL));
+    
+    if(TELEPORTATION){cout << "TELEPORTATION RUN" << endl;}
 
 	FILE * pFILE1 = fopen("rover_locations.txt", "w");
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
@@ -770,6 +791,7 @@ int main()
 		neural_network NN;
 
 		/// Set up neural network
+        if(TELEPORTATION==0){
 		NN.clean();
 		NN.setup(INPUTS, HIDDEN, OUTPUTS);
 		for (int in = 0; in<INPUTS; in++){
@@ -783,8 +805,16 @@ int main()
 		for (int out = 0; out<OUTPUTS; out++){
 			NN.take_out_min_max(-XMAX / 10, XMAX / 10);
 		}
+        }
+        if(TELEPORTATION==1){
+            NN.clean();
+            NN.setup(0,HIDDEN,OUTPUTS);
+            for (int out = 0; out<OUTPUTS; out++){
+                NN.take_out_min_max((double)-0.1*XMAX,(double)1.1*XMAX);
+            }
+        }
 
-		/// create population of neural networks.  
+		/// create population of neural networks.
 		for (int p = 0; p<EVOPOP; p++){
 			fidos.at(r).population.push_back(NN);
 			fidos.at(r).selected.push_back(p);
@@ -874,15 +904,6 @@ int main()
 				for (int i = 0; i<num_POI; i++)
 				{
 					//cout << "begin react " << i << endl;
-
-					//int assignee = POIs[i].find_kth_closest_rover(0, fidos);
-					//double distance = POIs[i].find_dist_to_rover(assignee, fidos);
-					//double red_observation_value = POIs[i].calc_red_observation_value(distance);
-					//double blue_observation_value = POIs[i].calc_blue_observation_value(distance);
-
-					//fidos.at(assignee).local_red += red_observation_value;
-					//fidos.at(assignee).local_blue += blue_observation_value;
-
 					POIs[i].find_dist_to_all_rovers(fidos);
 
 					for (int j = 0; j < num_ROVERS; j++)
@@ -900,9 +921,6 @@ int main()
 					//cout << "red value of " << red_observation_value << " assigned to rover " << assignee << endl;
 					//cout << "blue value of " << blue_observation_value << " assigned to rover " << assignee << endl;
 					//cout << "end react " << i << endl;
-
-					//int assignee_not_i=POIs[i].find_kth_closest_rover_not_i(0,i,&fido);
-					//double distance_not_i=POIs[i].find_dist_to_rover(assignee_not_i,&fido);
 				}
 
 				//uses the distances to each rover to find the perfectly learnable reward and difference rewards

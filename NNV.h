@@ -207,18 +207,18 @@ void neural_network::zero_weights(){
 void neural_network::mutate(){
     if(rand()%2){
     for(int i=0; i<input.layer_nodes.size(); i++){
-        input.layer_nodes.at(i).alter_some_weights(0.2);
+        input.layer_nodes.at(i).alter_some_weights(0.05);
     }
     for(int h=0; h<hidden.layer_nodes.size(); h++){
-        hidden.layer_nodes.at(h).alter_some_weights(0.2);
+        hidden.layer_nodes.at(h).alter_some_weights(0.05);
     }
     }
     else{
        for(int i=0; i<input.layer_nodes.size(); i++){
-        input.layer_nodes.at(i).alter_some_weights(0.8);
+        input.layer_nodes.at(i).alter_some_weights(0.2);
     }
     for(int h=0; h<hidden.layer_nodes.size(); h++){
-        hidden.layer_nodes.at(h).alter_some_weights(0.8);
+        hidden.layer_nodes.at(h).alter_some_weights(0.2);
     } 
     }
 }
@@ -382,12 +382,12 @@ void neural_network::execute(int input_number, int output_number){
 }
 
 void node::output_floor(){
-        if(out<0.05){
+        if(out<0.01){
             out=0;
         }
 }
 void node::output_ceiling(){
-    if(out>0.95){
+    if(out>0.99){
         out=1;
     }
 }
