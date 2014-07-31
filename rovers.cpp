@@ -23,8 +23,8 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 1
-#define DETERMINISTICALLY_PLACED 1 // If more than num_ROVERS, will deterministcally place all rovers
+#define num_ROVERS 4
+#define DETERMINISTICALLY_PLACED 4 // If more than num_ROVERS, will deterministcally place all rovers
 
 #define TELEPORTATION 1
 
@@ -380,7 +380,7 @@ int deterministic_and_random_place(vector<rover>& fidos)
 	// pseudo-randomly place a number of rovers
 	double x, y, heading;
 	vector<double> xlist = { 40, 50, 50, 60 };
-	vector<double> ylist = { 50, 40, 60, 50 };
+	vector<double> ylist = { 60, 40, 60, 50 };
 	vector<double> hlist = { 0, 0, 0, 0, };
 	if (DETERMINISTICALLY_PLACED>xlist.size()){
 		cout << "DETERMINISTIC PLACE ERROR" << endl;
@@ -977,8 +977,8 @@ int main()
 						{
 							//P_i += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
 							//P_i += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
-							P_i_red += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
-							P_i_blue += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
+							//P_i_red += POIs[j].calc_red_observation_value(POIs[j].distances.at(i));
+							//P_i_blue += POIs[j].calc_blue_observation_value(POIs[j].distances.at(i));
 
 							if (POIs[j].distances.at(i) < POIs[j].max_obs_distance)
 							{
@@ -997,8 +997,8 @@ int main()
 						//fidos.at(i).perfectly_learnable_chunks_blue.push_back(P_i_blue);
 
 						//fidos.at(i).difference_chunks.push_back(counterfactual);
-						fidos.at(i).difference_chunks_red.push_back(c_f_red);
-						fidos.at(i).difference_chunks_blue.push_back(c_f_blue);
+						fidos.at(i).difference_chunks_red.push_back(global_red-c_f_red);
+						fidos.at(i).difference_chunks_blue.push_back(global_blue-c_f_blue);
 					}
 				}
 
@@ -1051,8 +1051,8 @@ int main()
 					NSGA.NSGA_reset();
 					for (int ev = 0; ev < EVOPOP; ev++) {
 						vector<double> afit;
-						afit.push_back(fidos.at(r).sum_global_red.at(ev));
-						afit.push_back(fidos.at(r).sum_global_blue.at(ev));
+						afit.push_back(fidos.at(r).sum_difference_red.at(ev));
+						afit.push_back(fidos.at(r).sum_difference_blue.at(ev));
 						NSGA.vector_input(afit, ev);
 					}
 					NSGA.execute();
