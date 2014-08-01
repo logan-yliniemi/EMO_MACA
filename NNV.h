@@ -14,7 +14,7 @@
 #include <map>
 
 #define LYRAND ((double)rand()/RAND_MAX)
-#define BEGIN (sqrt(5))
+#define BEGIN (sqrt(10))
 //#define BEGIN 0.01
 
 using namespace std;
@@ -51,9 +51,6 @@ double cosine(double inp){
     return out;
 }
 /// END NON NNV, NECESSARY FUNCTION BLOC
-
-
-
 
 #define WEIGHTSTEP (0.2)
 //double WEIGHTSTEP;
@@ -158,7 +155,6 @@ class neural_network{
     layer input;
     layer hidden;
     layer output;
-    
     
     void set_node_scaling(node*,bool,bool,int);
     
@@ -274,12 +270,12 @@ void layer::clean(){
 }
 
 void neural_network::clean(){
+    fitness=0;
     input_values.clear();
     output_values.clear();
     input.clean();
     hidden.clean();
     output.clean();
-    fitness=0;
 }
 
 void node::sigmoid(){
