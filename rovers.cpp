@@ -23,32 +23,32 @@
 #define YMAX 100
 
 #define num_POI 4
-#define num_ROVERS 1
-#define DETERMINISTICALLY_PLACED 1 // If more than num_ROVERS, will deterministcally place all rovers
+#define num_ROVERS 4
+#define DETERMINISTICALLY_PLACED 4 
 
 #define TELEPORTATION 1
 
 #define DO_LOCAL 0
-#define DO_GLOBAL 1
-#define DO_DIFFERENCE 0
+#define DO_GLOBAL 0
+#define DO_DIFFERENCE 1
 
-#define DO_LC 1
-#define DO_NSGA 0
+#define DO_LC 0
+#define DO_NSGA 1
 #define DO_SPEA 0
 #define TIMESTEPS 1
-#define GENERATIONS 500
+#define GENERATIONS 3000
 #define STAT_RUN 1
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
-#define MAX_OBS_DIST (XMAX/1)
+#define MAX_OBS_DIST (XMAX/10)
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 12
 #define HIDDEN 6
 #define OUTPUTS 2
-#define EVOPOP 3
+#define EVOPOP 50
 
 using namespace std;
 
@@ -144,9 +144,9 @@ public:
     vector<double> sum_local_red, sum_local_blue;
 	vector<double> sum_global_red, sum_global_blue;
 	vector<double> temp_sum_global_red, temp_sum_global_blue;
-	vector<double> global_chunks, global_red_chunks, global_blue_chunks;
-	vector<double> perfectly_learnable_chunks, perfectly_learnable_chunks_red, perfectly_learnable_chunks_blue;
-	vector<double> difference_chunks, difference_chunks_red, difference_chunks_blue;
+	vector<double> global_red_chunks, global_blue_chunks;
+	vector<double> local_red_chunks, local_blue_chunks;
+	vector<double> difference_red_chunks, difference_blue_chunks;
 	vector<double> sum_difference_red, sum_difference_blue;
 	vector<double> store_x, store_y;
 	vector< vector<double> > policy_positions_x, policy_positions_y;
@@ -194,7 +194,7 @@ public:
 
 	int find_kth_closest_rover(int, vector<rover>&);
 	double find_dist_to_rover(int, vector<rover>&);
-	int find_kth_closest_rover_not_i(int, int, vector<rover>);
+	int find_kth_closest_rover_not_i(int, int, vector<rover>&);
 	void find_dist_to_all_rovers(vector<rover>&);
 
 	double calc_red_observation_value(double);
@@ -246,7 +246,7 @@ int landmark::find_kth_closest_rover(int k, vector<rover>& fidos)
 	return closest;
 }
 
-int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover> fidos){
+int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover>& fidos){
 	int closest;
 	double closest_distance;
 	vector<double> distances;
@@ -610,13 +610,10 @@ void clear_rewards(vector<rover>& fidos)
 {
 	for (int i = 0; i < num_ROVERS; i++)
 	{
-		fidos.at(i).global_chunks.clear();
 		fidos.at(i).global_red_chunks.clear();
 		fidos.at(i).global_blue_chunks.clear();
-		fidos.at(i).perfectly_learnable_chunks.clear();
-		fidos.at(i).difference_chunks.clear();
-		fidos.at(i).difference_chunks_red.clear();
-		fidos.at(i).difference_chunks_blue.clear();
+		fidos.at(i).difference_red_chunks.clear();
+		fidos.at(i).difference_blue_chunks.clear();
 	}
 }
 
@@ -818,9 +815,13 @@ void complete_react(vector<rover>& fidos, landmark* POIs){
 
 void calculate_locals(vector<rover>& fidos, landmark* POIs){
     /// Each rover calculates its observation values for each POI, disregarding all other rovers.
-    for (int i = 0; i < num_ROVERS; i++)
-    {
-        /// TODO @DW
+    for (int i = 0; i < num_ROVERS; i++){
+	for (int p = 0; p < num_POI; p++){
+		int lred = POIs[p].calc_red_observation_value(POIs[p].distances.at(i));
+		int lblue = POIs[p].calc_blue_observation_value(POIs[p].distances.at(i));
+		fidos.at(i).local_red_chunks.push_back(lred);
+		fidos.at(i).local_blue_chunks.push_back(lblue);
+	}
     }
 }
 
@@ -848,8 +849,8 @@ void calculate_differences(vector<rover>& fidos, landmark* POIs){
         double cred = POIs[p].calc_red_observation_value(POIs[p].distances.at(second_closest));
         double cblue = POIs[p].calc_blue_observation_value(POIs[p].distances.at(second_closest));
         /// Push Back Difference
-        fidos.at(closest).difference_chunks_red.push_back(gred - cred);
-        fidos.at(closest).difference_chunks_blue.push_back(gblue - cblue);
+        fidos.at(closest).difference_red_chunks.push_back(gred - cred);
+        fidos.at(closest).difference_blue_chunks.push_back(gblue - cblue);
     }
     }
 }
@@ -891,8 +892,8 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
         //for(int ev=0; ev<EVOPOP; ev++){
         int thisone = fidos.at(r).selected.at(ev);
             if(DO_LOCAL){
-            fidos.at(r).sum_local_red.at(thisone) = accumulate(fidos.at(r).perfectly_learnable_chunks_red.begin(),fidos.at(r).perfectly_learnable_chunks_red.end(),0.0);
-            fidos.at(r).sum_local_blue.at(thisone) = accumulate(fidos.at(r).perfectly_learnable_chunks_blue.begin(), fidos.at(r).perfectly_learnable_chunks_blue.end(),0.0);
+            fidos.at(r).sum_local_red.at(thisone) = accumulate(fidos.at(r).local_red_chunks.begin(),fidos.at(r).local_red_chunks.end(),0.0);
+            fidos.at(r).sum_local_blue.at(thisone) = accumulate(fidos.at(r).local_blue_chunks.begin(), fidos.at(r).local_blue_chunks.end(),0.0);
             }
             
             if(DO_GLOBAL){
@@ -902,8 +903,8 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
             }
             
             if(DO_DIFFERENCE){
-            fidos.at(r).sum_difference_red.at(thisone) = accumulate(fidos.at(r).difference_chunks_red.begin(),fidos.at(r).difference_chunks_red.end(),0.0);
-            fidos.at(r).sum_difference_blue.at(thisone) = accumulate(fidos.at(r).difference_chunks_blue.begin(),fidos.at(r).difference_chunks_blue.end(),0.0);
+            fidos.at(r).sum_difference_red.at(thisone) = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
+            fidos.at(r).sum_difference_blue.at(thisone) = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
             }
         //}
     }
@@ -993,7 +994,7 @@ int main()
     
     if(TELEPORTATION){cout << "TELEPORTATION RUN" << endl;}
 
-	FILE * pFILE1 = fopen("rover_locations.txt", "w");
+	FILE * pFILE1 = fopen("rover_locations2.txt", "w");
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
 	FILE * pFILE3 = fopen("fitnesses.txt", "w");
 	FILE * pFILE4 = fopen("red_blue_statrun.txt", "w");
@@ -1084,7 +1085,7 @@ int main()
 
 					/// ACT
 					//cout << "ACT!" << endl;
-					if (gen == GENERATIONS - 1 && STAT_RUN == 1){
+					if (gen == GENERATIONS - 1 && STAT_RUN == 1 && t==0){
 						print_rover_locations(pFILE1, fidos);
 						store_timestep_locations(fidos);
 					}
@@ -1092,6 +1093,11 @@ int main()
 					for (int r = 0; r < num_ROVERS; r++)
 					{
 						fidos.at(r).act();
+					}
+
+					if (gen == GENERATIONS - 1 && STAT_RUN == 1){
+						print_rover_locations(pFILE1, fidos);
+						store_timestep_locations(fidos);
 					}
 
 					/// REACT
@@ -1105,13 +1111,45 @@ int main()
 
 			//print_red_blue_statrun(pFILE4, fidos, stat_run);
             
-			if (DO_NSGA){
+			if (DO_NSGA && DO_LOCAL){
+				for (int r = 0; r < num_ROVERS; r++) {
+					NSGA.NSGA_reset();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						vector<double> afit;
+						afit.push_back(fidos.at(r).sum_local_red.at(fidos.at(r).selected.at(ev)));
+						afit.push_back(fidos.at(r).sum_local_blue.at(fidos.at(r).selected.at(ev)));
+						NSGA.vector_input(afit, ev);
+					}
+					NSGA.execute();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
+					}
+				}
+			}
+
+			if (DO_NSGA && DO_GLOBAL){
 				for (int r = 0; r < num_ROVERS; r++) {
 					NSGA.NSGA_reset();
 					for (int ev = 0; ev < EVOPOP; ev++) {
 						vector<double> afit;
 						afit.push_back(fidos.at(r).sum_global_red.at(fidos.at(r).selected.at(ev)));
-						afit.push_back(fidos.at(r).sum_global_red.at(fidos.at(r).selected.at(ev)));
+						afit.push_back(fidos.at(r).sum_global_blue.at(fidos.at(r).selected.at(ev)));
+						NSGA.vector_input(afit, ev);
+					}
+					NSGA.execute();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
+					}
+				}
+			}
+
+			if (DO_NSGA && DO_DIFFERENCE){
+				for (int r = 0; r < num_ROVERS; r++) {
+					NSGA.NSGA_reset();
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						vector<double> afit;
+						afit.push_back(fidos.at(r).sum_difference_red.at(fidos.at(r).selected.at(ev)));
+						afit.push_back(fidos.at(r).sum_difference_blue.at(fidos.at(r).selected.at(ev)));
 						NSGA.vector_input(afit, ev);
 					}
 					NSGA.execute();
