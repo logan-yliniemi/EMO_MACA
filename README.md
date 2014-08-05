@@ -1,2 +1,4 @@
-multiagent_multiobjective_research
+evolutionary multiobjective optimization
+with multiple agents
+addressing credit assignment
 ==================================
