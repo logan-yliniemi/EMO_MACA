@@ -22,9 +22,9 @@
 #define YMIN 0
 #define YMAX 100
 
-#define num_POI 4
-#define num_ROVERS 4
-#define DETERMINISTICALLY_PLACED 4 
+#define num_POI 20
+#define num_ROVERS 15
+#define DETERMINISTICALLY_PLACED 15
 
 #define TELEPORTATION 1
 
@@ -33,22 +33,23 @@
 #define DO_DIFFERENCE 1
 
 #define DO_LC 0
+#define DO_HV 0
 #define DO_NSGA 1
 #define DO_SPEA 0
 #define TIMESTEPS 1
-#define GENERATIONS 3000
+#define GENERATIONS 1
 #define STAT_RUN 1
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
-#define MAX_OBS_DIST (XMAX/10)
+#define MAX_OBS_DIST 3
 
 // NEURAL NETWORK PARAMETERS
-#define INPUTS 12
-#define HIDDEN 6
+#define INPUTS 0
+#define HIDDEN 5
 #define OUTPUTS 2
-#define EVOPOP 50
+#define EVOPOP 10
 
 using namespace std;
 
@@ -141,13 +142,13 @@ public:
 	double rover_state[QUADRANTS];
 	double blue_state[QUADRANTS];
 	double red_state[QUADRANTS];
+	vector<double> local_red_chunks, local_blue_chunks;
+	vector<double> global_red_chunks, global_blue_chunks;
+	vector<double> difference_red_chunks, difference_blue_chunks;
     vector<double> sum_local_red, sum_local_blue;
 	vector<double> sum_global_red, sum_global_blue;
-	vector<double> temp_sum_global_red, temp_sum_global_blue;
-	vector<double> global_red_chunks, global_blue_chunks;
-	vector<double> local_red_chunks, local_blue_chunks;
-	vector<double> difference_red_chunks, difference_blue_chunks;
 	vector<double> sum_difference_red, sum_difference_blue;
+	vector<double> temp_sum_global_red, temp_sum_global_blue;
 	vector<double> store_x, store_y;
 	vector< vector<double> > policy_positions_x, policy_positions_y;
 
@@ -392,9 +393,9 @@ int deterministic_and_random_place(vector<rover>& fidos)
 {
 	// pseudo-randomly place a number of rovers
 	double x, y, heading;
-	vector<double> xlist = { 40, 50, 50, 60 };
-	vector<double> ylist = { 60, 40, 60, 50 };
-	vector<double> hlist = { 0, 0, 0, 0, };
+	vector<double> xlist = { 40, 50, 50, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	vector<double> ylist = { 60, 40, 60, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	vector<double> hlist = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	if (DETERMINISTICALLY_PLACED>xlist.size()){
 		cout << "DETERMINISTIC PLACE ERROR" << endl;
 	}
@@ -610,6 +611,8 @@ void clear_rewards(vector<rover>& fidos)
 {
 	for (int i = 0; i < num_ROVERS; i++)
 	{
+		fidos.at(i).local_red_chunks.clear();
+		fidos.at(i).local_blue_chunks.clear();
 		fidos.at(i).global_red_chunks.clear();
 		fidos.at(i).global_blue_chunks.clear();
 		fidos.at(i).difference_red_chunks.clear();
@@ -702,6 +705,18 @@ void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y)
 		}
 	}
 	once++;
+}
+
+void print_poi_all_values(FILE * pFILE5, vector<double> x, vector<double> y, vector<double> red, vector<double> blue)
+{
+	static int only_once = 1;
+	if (only_once == 1){
+		for (int i = 0; i < num_POI; i++)
+		{
+			fprintf(pFILE5, "%.4f\t%.4f\t%.4f\t%.4f\n", x.at(i), y.at(i), red.at(i), blue.at(i));
+		}
+	}
+	only_once++;
 }
 
 void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
@@ -932,6 +947,30 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
             fidos.at(r).population.at(thisone).set_fitness(val);
         }
     }
+
+	if (DO_HV){
+		for (int r = 0; r < num_ROVERS; r++) {
+			double val = 0, redval = 0, blueval = 0;
+			int thisone = fidos.at(r).selected.at(ev);
+			/// LOCAL
+			if (DO_LOCAL){
+				blueval = fidos.at(r).sum_local_blue.at(thisone);
+				redval = fidos.at(r).sum_local_red.at(thisone);
+			}
+			/// GLOBAL
+			if (DO_GLOBAL){
+				blueval = fidos.at(r).sum_global_blue.at(thisone);
+				redval = fidos.at(r).sum_global_red.at(thisone);
+			}
+			/// DIFFERENCE
+			if (DO_DIFFERENCE){
+				blueval = fidos.at(r).sum_difference_blue.at(thisone);
+				redval = fidos.at(r).sum_difference_red.at(thisone);
+			}
+			val = blueval * redval;
+			fidos.at(r).population.at(thisone).set_fitness(val);
+		}
+	}
     
     /// 3)
     store_policy_locations(fidos);
@@ -941,6 +980,17 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
         fidos.at(i).store_y.clear();
     }
     
+}
+
+void set_up_all_pois(landmark* POIs){
+/*	for (int p = 0; p < num_POI; p++){
+		double x = rand() % 101;
+		double y = rand() % 101;
+		double red_val = rand() % 10 + 1;
+		double blue_val = rand() % 10 + 1;
+		POIs[p].create(x, y, red_val, blue_val);
+	}*/
+
 }
 
 void set_up_all_rovers(vector<rover>& fidos){
@@ -998,6 +1048,7 @@ int main()
 	FILE * pFILE2 = fopen("poi_locations.txt", "w");
 	FILE * pFILE3 = fopen("fitnesses.txt", "w");
 	FILE * pFILE4 = fopen("red_blue_statrun.txt", "w");
+	//FILE * pFILE5 = fopen("poi_values.txt", "w");
 
 	for (int stat_run = 0; stat_run < STAT_RUN; stat_run++)
 	{
@@ -1005,21 +1056,26 @@ int main()
 		landmark POIs[num_POI];
 
 		/// x, y, r, b;
-		POIs[0].create(10, 10, 10, 10);
-		POIs[1].create(10, 90, 0, 100);
-		POIs[2].create(90, 10, 100, 0);
-		POIs[3].create(90, 90, 100, 100);
+		//POIs[0].create(10, 10, 10, 10);
+		//POIs[1].create(10, 90, 10, 10);
+		//POIs[2].create(90, 10, 10, 00);
+		//POIs[3].create(90, 90, 10, 10);
 
-		vector<double> poi_x_locations;
-		vector<double> poi_y_locations;
+		set_up_all_pois(POIs);
+
+		vector<double> poi_x_locations, poi_y_locations;
+		vector<double> poi_red_values, poi_blue_values;
 
 		for (int j = 0; j < num_POI; j++)
 		{
 			poi_x_locations.push_back(POIs[j].x);
 			poi_y_locations.push_back(POIs[j].y);
+			poi_red_values.push_back(POIs[j].start_red);
+			poi_blue_values.push_back(POIs[j].start_blue);
 		}
 
 		print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
+		//print_poi_all_values(pFILE5, poi_x_locations, poi_y_locations, poi_red_values, poi_blue_values);
 		/// END Create Landmarks
 
 		/// BGN Create Rovers
@@ -1221,6 +1277,7 @@ int main()
 	fclose(pFILE2);
 	fclose(pFILE3);
 	fclose(pFILE4);
+	//fclose(pFILE5);
 	return 0;
 }
 
