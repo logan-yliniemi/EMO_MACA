@@ -5,6 +5,7 @@
 // Alterations: Logan Yliniemi and Drew T. Wilson, July 2014
 
 #include <iostream>
+#include <fstream>
 #include <math.h>
 #include <vector>
 #include <ctime>
@@ -37,13 +38,13 @@
 #define DO_NSGA 1
 #define DO_SPEA 0
 #define TIMESTEPS 1
-#define GENERATIONS 1
-#define STAT_RUN 1
+#define GENERATIONS 10
+#define STAT_RUN 10
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
-#define MAX_OBS_DIST 3
+#define MAX_OBS_DIST 200
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 0
@@ -393,8 +394,8 @@ int deterministic_and_random_place(vector<rover>& fidos)
 {
 	// pseudo-randomly place a number of rovers
 	double x, y, heading;
-	vector<double> xlist = { 40, 50, 50, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	vector<double> ylist = { 60, 40, 60, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	vector<double> xlist = { 40, 50, 50, 60, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50 };
+	vector<double> ylist = { 60, 40, 60, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50 };
 	vector<double> hlist = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	if (DETERMINISTICALLY_PLACED>xlist.size()){
 		cout << "DETERMINISTIC PLACE ERROR" << endl;
@@ -734,11 +735,11 @@ void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
 
 void print_red_blue_statrun(FILE * pFILE4, vector<rover>& fidos, int stat_run)
 {
-	for (int i = 0; i < num_ROVERS; i++)
-	{
-		for (int ev = 0; ev < EVOPOP; ev++)
-		{
-			fprintf(pFILE4, "%.5f\t%.5f\t%d\n", fidos.at(i).sum_global_red.at(ev), fidos.at(i).sum_global_blue.at(ev), stat_run);
+	for (int i = 0; i < num_ROVERS; i++){
+		for (int ev = 0; ev < EVOPOP; ev++){
+			fprintf(pFILE4, "%.5f\t", fidos.at(i).sum_global_red.at(ev));
+			fprintf(pFILE4, "%.5f\t", fidos.at(i).sum_global_blue.at(ev));
+			fprintf(pFILE4, "%d\n", stat_run);
 		}
 	}
 }
@@ -883,6 +884,10 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
         fidos.at(i).sum_local_blue.clear();
         fidos.at(i).sum_local_red.resize(EVOPOP,0);
         fidos.at(i).sum_local_blue.resize(EVOPOP,0);
+		fidos.at(i).sum_global_red.clear();
+		fidos.at(i).sum_global_blue.clear();
+		fidos.at(i).sum_global_red.resize(EVOPOP, 0);
+		fidos.at(i).sum_global_blue.resize(EVOPOP, 0);
         }
         
         if(DO_GLOBAL){
@@ -897,6 +902,10 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
         fidos.at(i).sum_difference_blue.clear();
         fidos.at(i).sum_difference_red.resize(EVOPOP,0);
         fidos.at(i).sum_difference_blue.resize(EVOPOP,0);
+		fidos.at(i).sum_global_red.clear();
+		fidos.at(i).sum_global_blue.clear();
+		fidos.at(i).sum_global_red.resize(EVOPOP, 0);
+		fidos.at(i).sum_global_blue.resize(EVOPOP, 0);
         }
 
     }
@@ -909,7 +918,9 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
             if(DO_LOCAL){
             fidos.at(r).sum_local_red.at(thisone) = accumulate(fidos.at(r).local_red_chunks.begin(),fidos.at(r).local_red_chunks.end(),0.0);
             fidos.at(r).sum_local_blue.at(thisone) = accumulate(fidos.at(r).local_blue_chunks.begin(), fidos.at(r).local_blue_chunks.end(),0.0);
-            }
+			fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
+			fidos.at(r).sum_global_blue.at(thisone) = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
+			}
             
             if(DO_GLOBAL){
             fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(),fidos.at(r).global_red_chunks.end(),0.0);
@@ -920,7 +931,9 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
             if(DO_DIFFERENCE){
             fidos.at(r).sum_difference_red.at(thisone) = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
             fidos.at(r).sum_difference_blue.at(thisone) = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
-            }
+			fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
+			fidos.at(r).sum_global_blue.at(thisone) = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
+			}
         //}
     }
     
@@ -982,15 +995,34 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
     
 }
 
-void set_up_all_pois(landmark* POIs){
-/*	for (int p = 0; p < num_POI; p++){
+void make_random_pois(landmark* POIs){
+	for (int p = 0; p < num_POI; p++){
 		double x = rand() % 101;
 		double y = rand() % 101;
 		double red_val = rand() % 10 + 1;
 		double blue_val = rand() % 10 + 1;
 		POIs[p].create(x, y, red_val, blue_val);
-	}*/
+	}
+}
 
+void set_up_all_pois(landmark* POIs){
+	int n = 1, n1 = 0, n2 = 0, n3 = 0, n4 = 0;
+	double num = 0;
+	double x, y, red, blue;
+
+	ifstream datafile("poi_values.txt");
+	while (datafile >> num){
+		if (n % 4 == 1) x = num, n1++;
+		else if (n % 4 == 2) y = num, n2++;
+		else if (n % 4 == 3) red = num, n3++;
+		else if (n % 4 == 0){
+			blue = num;
+			POIs[n4].create(x, y, red, blue);
+			n4++;
+		}
+		n++;
+	}
+	datafile.close();
 }
 
 void set_up_all_rovers(vector<rover>& fidos){
@@ -1061,6 +1093,7 @@ int main()
 		//POIs[2].create(90, 10, 10, 00);
 		//POIs[3].create(90, 90, 10, 10);
 
+		//make_random_pois(POIs);
 		set_up_all_pois(POIs);
 
 		vector<double> poi_x_locations, poi_y_locations;
@@ -1165,7 +1198,7 @@ int main()
 			} /// END EVOPOP LOOP
 			
 
-			//print_red_blue_statrun(pFILE4, fidos, stat_run);
+			print_red_blue_statrun(pFILE4, fidos, stat_run);
             
 			if (DO_NSGA && DO_LOCAL){
 				for (int r = 0; r < num_ROVERS; r++) {
