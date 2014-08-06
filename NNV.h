@@ -159,6 +159,11 @@ class neural_network{
     void set_node_scaling(node*,bool,bool,int);
     
     double fitness;
+    vector<double> raw_objectives;
+    vector<double> raw_locals;
+    vector<double> raw_globals;
+    vector<double> raw_gzmis;
+    vector<double> raw_differences;
     
 public:
 	void clean();
@@ -176,7 +181,60 @@ public:
     void zero_weights();
     void display_out_min_max(int);
     double get_average_weights();
+    double get_raw_objective(int);
+    void set_next_raw_objective(double);
+    double get_raw_local(int);
+    double get_raw_global(int);
+    double get_raw_gzmi(int);
+    double get_raw_difference(int);
+    void set_next_raw_local(double);
+    void set_next_raw_global(double);
+    void set_next_raw_gzmi(double);
+    void set_next_raw_difference(double);
+    vector<double> get_raw_objectives();
 };
+
+vector<double> neural_network::get_raw_objectives(){
+    return raw_objectives;
+}
+
+double neural_network::get_raw_objective(int a){
+    return raw_objectives.at(a);
+}
+
+double neural_network::get_raw_local(int a){
+    return raw_locals.at(a);
+}
+
+double neural_network::get_raw_global(int a){
+    return raw_globals.at(a);
+}
+
+double neural_network::get_raw_gzmi(int a){
+    return raw_gzmis.at(a);
+}
+
+double neural_network::get_raw_difference(int a){
+    return raw_differences.at(a);
+}
+
+void neural_network::set_next_raw_objective(double b){
+    raw_objectives.push_back(b);
+}
+
+void neural_network::set_next_raw_local(double b){
+    raw_locals.push_back(b);
+}
+
+void neural_network::set_next_raw_global(double b){
+    raw_globals.push_back(b);
+}
+void neural_network::set_next_raw_gzmi(double b){
+    raw_gzmis.push_back(b);
+}
+void neural_network::set_next_raw_difference(double b){
+    raw_differences.push_back(b);
+}
 
 double neural_network::get_average_weights(){
     double num=0;
@@ -271,6 +329,12 @@ void layer::clean(){
 
 void neural_network::clean(){
     fitness=0;
+    raw_objectives.clear();
+    raw_locals.clear();
+    raw_globals.clear();
+    raw_gzmis.clear();
+    raw_differences.clear();
+    
     input_values.clear();
     output_values.clear();
     input.clean();
