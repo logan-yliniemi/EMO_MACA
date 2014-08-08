@@ -24,7 +24,7 @@
 #define YMAX 100
 
 #define num_POI 20
-#define num_ROVERS 5
+#define num_ROVERS 15
 #define DETERMINISTICALLY_PLACED 15
 
 #define TELEPORTATION 1
@@ -33,26 +33,27 @@
 #define DO_GLOBAL 0
 #define DO_DIFFERENCE 1
 
-#define DO_LC 0
+#define DO_LC 1
 #define DO_HV 0
-#define DO_NSGA 1
+#define DO_NSGA 0
 #define DO_SPEA 0
+
 #define TIMESTEPS 1
-#define GENERATIONS 10
-#define STAT_RUN 10
+#define GENERATIONS 100
+#define STAT_RUN 1
 
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST (XMAX/100)
-#define MAX_OBS_DIST 200
+#define MAX_OBS_DIST 3
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 0
 #define HIDDEN 5
 #define OUTPUTS 2
-#define EVOPOP 4
+#define EVOPOP 100
 
-#define POI_GENERATE 1
+#define POI_GENERATE 0
 
 using namespace std;
 
@@ -741,13 +742,12 @@ void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
 
 void print_red_blue_statrun(FILE * pFILE4, vector<rover>& fidos, int stat_run)
 {
-    cout << "RBS: " << fidos.at(0).population.at(0).get_raw_objective(0) << "\t" << fidos.at(0).population.at(0).get_raw_objective(1) << endl;
-	for (int i = 0; i < num_ROVERS; i++){
-		for (int ev = 0; ev < EVOPOP; ev++){
-			fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_objective(0));
-			fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_objective(1));
-			fprintf(pFILE4, "%d\n", stat_run);
-		}
+    //cout << "RBS: " << fidos.at(0).population.at(0).get_raw_objective(0) << "\t" << fidos.at(0).population.at(0).get_raw_objective(1) << endl;
+	int i = 0;
+	for (int ev = 0; ev < EVOPOP; ev++){
+		fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_global(0));
+		fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_global(1));
+		fprintf(pFILE4, "%d\n", stat_run);
 	}
 }
 
@@ -832,7 +832,7 @@ void complete_react(vector<rover>& fidos, landmark* POIs){
         globalflag = true;
     calculate_globals(fidos, POIs); /// Always done so we can evaluate team performance.
         for(int r=0; r<num_ROVERS; r++){
-            cout << fidos.at(r).global_red_chunks.size() << "!:!:!:!:!:!:!:!:!:!:" << r << endl;
+            //cout << fidos.at(r).global_red_chunks.size() << "!:!:!:!:!:!:!:!:!:!:" << r << endl;
         }
     }
     /// Find Difference Rewards
@@ -866,7 +866,7 @@ void calculate_globals(vector<rover>& fidos, landmark* POIs){
         int closest = POIs[p].find_kth_closest_rover(0, fidos);
         double red = POIs[p].calc_red_observation_value(POIs[p].distances.at(closest));
         double blue = POIs[p].calc_blue_observation_value(POIs[p].distances.at(closest));
-        cout << "REDBLUE: " << red << "\t" << blue << endl;
+        //cout << "REDBLUE: " << red << "\t" << blue << endl;
         for(int r=0; r< num_ROVERS; r++){
         fidos.at(r).global_red_chunks.push_back(red);
         fidos.at(r).global_blue_chunks.push_back(blue);
@@ -876,7 +876,6 @@ void calculate_globals(vector<rover>& fidos, landmark* POIs){
 
 void calculate_differences(vector<rover>& fidos, landmark* POIs){
     /// Calculate Difference Rewards
-    for(int i=0; i< num_ROVERS; i++){
     for (int p=0; p< num_POI; p++){
         int closest = POIs[p].find_kth_closest_rover(0,fidos);
         int second_closest = POIs[p].find_kth_closest_rover_not_i(0,closest,fidos);
@@ -889,7 +888,6 @@ void calculate_differences(vector<rover>& fidos, landmark* POIs){
         /// Push Back Difference
         fidos.at(closest).difference_red_chunks.push_back(gred - cred);
         fidos.at(closest).difference_blue_chunks.push_back(gblue - cblue);
-    }
     }
 }
 
@@ -973,9 +971,9 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
         }
             
             if(DO_DIFFERENCE){
-                cout << "R! " << r << endl;
-                cout << "DDR: " << fidos.at(r).global_red_chunks.size() << endl;
-                cout << "DDB: " << fidos.at(r).global_blue_chunks.size() << endl;
+                //cout << "R! " << r << endl;
+                //cout << "DDR: " << fidos.at(r).global_red_chunks.size() << endl;
+                //cout << "DDB: " << fidos.at(r).global_blue_chunks.size() << endl;
                 
                 double differencered = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
                 double differenceblue = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
@@ -1280,7 +1278,7 @@ int main()
 
 			print_red_blue_statrun(pFILE4, fidos, stat_run);
             
-			if (DO_NSGA && DO_LOCAL){
+			if (DO_NSGA){
 				for (int r = 0; r < num_ROVERS; r++) {
 					NSGA.NSGA_reset();
 					for (int ev = 0; ev < EVOPOP; ev++) {
@@ -1288,40 +1286,6 @@ int main()
                         //fidos.at(r).population.at(ev).get_raw_objective(0);
 						//afit.push_back(fidos.at(r).sum_local_red.at(fidos.at(r).selected.at(ev)));
 						//afit.push_back(fidos.at(r).sum_local_blue.at(fidos.at(r).selected.at(ev)));
-						NSGA.vector_input(afit, ev);
-					}
-					NSGA.execute();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
-					}
-				}
-			}
-
-			if (DO_NSGA && DO_GLOBAL){
-				for (int r = 0; r < num_ROVERS; r++) {
-					NSGA.NSGA_reset();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-                        vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-						//vector<double> afit;
-						//afit.push_back(fidos.at(r).sum_global_red.at(fidos.at(r).selected.at(ev)));
-						//afit.push_back(fidos.at(r).sum_global_blue.at(fidos.at(r).selected.at(ev)));
-						NSGA.vector_input(afit, ev);
-					}
-					NSGA.execute();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
-					}
-				}
-			}
-
-			if (DO_NSGA && DO_DIFFERENCE){
-				for (int r = 0; r < num_ROVERS; r++) {
-					NSGA.NSGA_reset();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-						//vector<double> afit;
-                        vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-						//afit.push_back(fidos.at(r).sum_difference_red.at(fidos.at(r).selected.at(ev)));
-						//afit.push_back(fidos.at(r).sum_difference_blue.at(fidos.at(r).selected.at(ev)));
 						NSGA.vector_input(afit, ev);
 					}
 					NSGA.execute();
