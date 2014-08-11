@@ -32,6 +32,7 @@
 #define DO_LOCAL 0
 #define DO_GLOBAL 0
 #define DO_DIFFERENCE 1
+#define ALWAYS 1 /// For pieces that need to run regardless of options.
 
 #define DO_LC 1
 #define DO_HV 0
@@ -831,15 +832,12 @@ void complete_react(vector<rover>& fidos, landmark* POIs){
     if(DO_LOCAL || DO_GLOBAL || DO_DIFFERENCE){
         globalflag = true;
     calculate_globals(fidos, POIs); /// Always done so we can evaluate team performance.
-        for(int r=0; r<num_ROVERS; r++){
-            //cout << fidos.at(r).global_red_chunks.size() << "!:!:!:!:!:!:!:!:!:!:" << r << endl;
-        }
     }
     /// Find Difference Rewards
     if(DO_DIFFERENCE) {
         calculate_differences(fidos, POIs);
     }
-    /// Assign Rewards to Rovers
+    /// Assign Rewards to Rovers (See Collect)
     
     /// Make sure global was calculated.
     if(globalflag==false){
@@ -892,80 +890,38 @@ void calculate_differences(vector<rover>& fidos, landmark* POIs){
 }
 
 void collect(vector<rover>& fidos, landmark* POIs, int ev){
-    /// 1) Sum pieces of individual time step rewards.
-    /// 2) Assign reward units to policies.
-    /// 3) ?? ///@DW
+    /// 1) Assign reward units to policies.
+    /// 2) ?? ///@DW
     
     /// 1)
-    /*
-    for (int i = 0; i < num_ROVERS; i++)
-    {
-        if(DO_LOCAL){
-        fidos.at(i).sum_local_red.clear();
-        fidos.at(i).sum_local_blue.clear();
-        fidos.at(i).sum_local_red.resize(EVOPOP,0);
-        fidos.at(i).sum_local_blue.resize(EVOPOP,0);
-		fidos.at(i).sum_global_red.clear();
-		fidos.at(i).sum_global_blue.clear();
-		fidos.at(i).sum_global_red.resize(EVOPOP, 0);
-		fidos.at(i).sum_global_blue.resize(EVOPOP, 0);
-        }
-        
-        if(DO_GLOBAL){
-        fidos.at(i).sum_global_red.clear();
-        fidos.at(i).sum_global_blue.clear();
-        fidos.at(i).sum_global_red.resize(EVOPOP,0);
-        fidos.at(i).sum_global_blue.resize(EVOPOP,0);
-        }
-        
-        if(DO_DIFFERENCE){
-        fidos.at(i).sum_difference_red.clear();
-        fidos.at(i).sum_difference_blue.clear();
-        fidos.at(i).sum_difference_red.resize(EVOPOP,0);
-        fidos.at(i).sum_difference_blue.resize(EVOPOP,0);
-		fidos.at(i).sum_global_red.clear();
-		fidos.at(i).sum_global_blue.clear();
-		fidos.at(i).sum_global_red.resize(EVOPOP, 0);
-		fidos.at(i).sum_global_blue.resize(EVOPOP, 0);
-        }
-
-    }
-    */
-
-    /// 2)
     for (int r = 0; r < num_ROVERS; r++)
     {
-        //for(int ev=0; ev<EVOPOP; ev++){
         int thisone = fidos.at(r).selected.at(ev);
             if(DO_LOCAL){
                 double localred = accumulate(fidos.at(r).local_red_chunks.begin(),fidos.at(r).local_red_chunks.end(),0.0);
                 double localblue = accumulate(fidos.at(r).local_blue_chunks.begin(), fidos.at(r).local_blue_chunks.end(),0.0);
                 double globalred = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
                 double globalblue = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
+                fidos.at(r).population.at(thisone).clear_raw_local();
+                fidos.at(r).population.at(thisone).clear_raw_objectives();
                 fidos.at(r).population.at(thisone).set_next_raw_local(localred);
                 fidos.at(r).population.at(thisone).set_next_raw_local(localblue);
                 fidos.at(r).population.at(thisone).set_next_raw_objective(localred);
                 fidos.at(r).population.at(thisone).set_next_raw_objective(localblue);
-                
-            //fidos.at(r).sum_local_red.at(thisone) = accumulate(fidos.at(r).local_red_chunks.begin(),fidos.at(r).local_red_chunks.end(),0.0);
-            //fidos.at(r).sum_local_blue.at(thisone) = accumulate(fidos.at(r).local_blue_chunks.begin(), fidos.at(r).local_blue_chunks.end(),0.0);
-            //fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
-			//fidos.at(r).sum_global_blue.at(thisone) = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
 			}
         
             if(DO_LOCAL || DO_GLOBAL || DO_DIFFERENCE){
                 double globalred = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
                 double globalblue = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
+                fidos.at(r).population.at(thisone).clear_raw_global();
                 fidos.at(r).population.at(thisone).set_next_raw_global(globalred);
                 fidos.at(r).population.at(thisone).set_next_raw_global(globalblue);
-            //fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(),fidos.at(r).global_red_chunks.end(),0.0);
-            //fidos.at(r).sum_global_blue.at(thisone) = accumulate(fidos.at(r).global_blue_chunks.begin(),fidos.at(r).global_blue_chunks.end(),0.0);
-                //cout <<fidos.at(r).sum_global_red.at(thisone) + fidos.at(r).sum_global_blue.at(thisone) << endl;
             }
         
         if(DO_GLOBAL){
             double globalred = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
             double globalblue = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
+            fidos.at(r).population.at(thisone).clear_raw_objectives();
             fidos.at(r).population.at(thisone).set_next_raw_objective(globalred);
             fidos.at(r).population.at(thisone).set_next_raw_objective(globalblue);
         }
@@ -977,19 +933,13 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
                 
                 double differencered = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
                 double differenceblue = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
+                fidos.at(r).population.at(thisone).clear_raw_objectives();
+                fidos.at(r).population.at(thisone).clear_raw_difference();
                 fidos.at(r).population.at(thisone).set_next_raw_difference(differencered);
                 fidos.at(r).population.at(thisone).set_next_raw_difference(differenceblue);
                 fidos.at(r).population.at(thisone).set_next_raw_objective(differencered);
                 fidos.at(r).population.at(thisone).set_next_raw_objective(differenceblue);
-
-                
-            //fidos.at(r).sum_difference_red.at(thisone) = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
-            //fidos.at(r).sum_difference_blue.at(thisone) = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
-			//fidos.at(r).sum_global_red.at(thisone) = accumulate(fidos.at(r).global_red_chunks.begin(), fidos.at(r).global_red_chunks.end(), 0.0);
-			//fidos.at(r).sum_global_blue.at(thisone) = accumulate(fidos.at(r).global_blue_chunks.begin(), fidos.at(r).global_blue_chunks.end(), 0.0);
-                //cout << "THIS: " << thisone << " RED: " << fidos.at(r).sum_global_red.at(thisone) << endl;
 			}
-        //}
     }
     
     if(DO_LC){
@@ -997,24 +947,6 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
             
             double val=0, redval = 0, blueval=0;
             int thisone = fidos.at(r).selected.at(ev);
-            /*
-            /// LOCAL
-            if(DO_LOCAL){
-                blueval = fidos.at(r).sum_local_blue.at(thisone);
-                redval = fidos.at(r).sum_local_red.at(thisone);
-            }
-            /// GLOBAL
-            if(DO_GLOBAL){
-                blueval = fidos.at(r).sum_global_blue.at(thisone);
-                redval = fidos.at(r).sum_global_red.at(thisone);
-            }
-            /// DIFFERENCE
-            if(DO_DIFFERENCE){
-                blueval = fidos.at(r).sum_difference_blue.at(thisone);
-                redval = fidos.at(r).sum_difference_red.at(thisone);
-            }
-            val = blueval + redval;
-            */
             redval = fidos.at(r).population.at(thisone).get_raw_objective(0);
             blueval = fidos.at(r).population.at(thisone).get_raw_objective(1);
             val = blueval + redval;
@@ -1025,25 +957,7 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
 	if (DO_HV){
 		for (int r = 0; r < num_ROVERS; r++) {
 			double val = 0, redval = 0, blueval = 0;
-			int thisone = fidos.at(r).selected.at(ev);
-            /*
-			/// LOCAL
-			if (DO_LOCAL){
-				blueval = fidos.at(r).sum_local_blue.at(thisone);
-				redval = fidos.at(r).sum_local_red.at(thisone);
-			}
-			/// GLOBAL
-			if (DO_GLOBAL){
-				blueval = fidos.at(r).sum_global_blue.at(thisone);
-				redval = fidos.at(r).sum_global_red.at(thisone);
-			}
-			/// DIFFERENCE
-			if (DO_DIFFERENCE){
-				blueval = fidos.at(r).sum_difference_blue.at(thisone);
-				redval = fidos.at(r).sum_difference_red.at(thisone);
-			}
-             */
-            redval = fidos.at(r).population.at(thisone).get_raw_objective(0);
+			int thisone = fidos.at(r).selected.at(ev);            redval = fidos.at(r).population.at(thisone).get_raw_objective(0);
             blueval = fidos.at(r).population.at(thisone).get_raw_objective(1);
 			val = blueval * redval;
 			fidos.at(r).population.at(thisone).set_fitness(val);
@@ -1275,7 +1189,6 @@ int main()
                 collect(fidos, POIs, ev); // End of episode cleanup.
 			} /// END EVOPOP LOOP
 			
-
 			print_red_blue_statrun(pFILE4, fidos, stat_run);
             
 			if (DO_NSGA){
@@ -1283,14 +1196,11 @@ int main()
 					NSGA.NSGA_reset();
 					for (int ev = 0; ev < EVOPOP; ev++) {
 						vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-                        //fidos.at(r).population.at(ev).get_raw_objective(0);
-						//afit.push_back(fidos.at(r).sum_local_red.at(fidos.at(r).selected.at(ev)));
-						//afit.push_back(fidos.at(r).sum_local_blue.at(fidos.at(r).selected.at(ev)));
 						NSGA.vector_input(afit, ev);
 					}
 					NSGA.execute();
 					for (int ev = 0; ev < EVOPOP; ev++) {
-						fidos.at(r).population.at(fidos.at(r).selected.at(ev)).set_fitness(-NSGA.NSGA_member_fitness(ev));
+						fidos.at(r).population.at(ev).set_fitness(-NSGA.NSGA_member_fitness(ev));
 					}
 				}
 			}
@@ -1323,16 +1233,6 @@ int main()
 			}
 			}
 			*/
-/*
-			for (int i = 0; i < num_ROVERS; i++)
-			{
-                fidos.at(i).sum_local_red.clear();
-                fidos.at(i).sum_local_blue.clear();
-				fidos.at(i).sum_global_red.clear();
-				fidos.at(i).sum_global_blue.clear();
-				fidos.at(i).sum_difference_red.clear();
-				fidos.at(i).sum_difference_blue.clear();
-			}*/
 
 			print_fitnesses(pFILE3, fidos, gen);
 

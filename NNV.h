@@ -181,16 +181,23 @@ public:
     void zero_weights();
     void display_out_min_max(int);
     double get_average_weights();
+    
+    /// Objective and Reward Handling Functions
     double get_raw_objective(int);
-    void set_next_raw_objective(double);
     double get_raw_local(int);
     double get_raw_global(int);
     double get_raw_gzmi(int);
     double get_raw_difference(int);
+    void set_next_raw_objective(double);
     void set_next_raw_local(double);
     void set_next_raw_global(double);
     void set_next_raw_gzmi(double);
     void set_next_raw_difference(double);
+    void clear_raw_local();
+    void clear_raw_global();
+    void clear_raw_gzmi();
+    void clear_raw_difference();
+    void clear_raw_objectives();
     vector<double> get_raw_objectives();
 };
 
@@ -234,6 +241,26 @@ void neural_network::set_next_raw_gzmi(double b){
 }
 void neural_network::set_next_raw_difference(double b){
     raw_differences.push_back(b);
+}
+
+void neural_network::clear_raw_local(){
+    raw_locals.clear();
+}
+
+void neural_network::clear_raw_global(){
+    raw_globals.clear();
+}
+
+void neural_network::clear_raw_gzmi(){
+    raw_gzmis.clear();
+}
+
+void neural_network::clear_raw_difference(){
+    raw_differences.clear();
+}
+
+void neural_network::clear_raw_objectives(){
+    raw_objectives.clear();
 }
 
 double neural_network::get_average_weights(){
