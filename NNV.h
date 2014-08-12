@@ -199,10 +199,15 @@ public:
     void clear_raw_difference();
     void clear_raw_objectives();
     vector<double> get_raw_objectives();
+    vector<double> get_raw_gzmis();
 };
 
 vector<double> neural_network::get_raw_objectives(){
     return raw_objectives;
+}
+
+vector<double> neural_network::get_raw_gzmis(){
+    return raw_gzmis;
 }
 
 double neural_network::get_raw_objective(int a){

@@ -19,13 +19,13 @@
 #define pi 3.141529
 #define QUADRANTS 4
 #define XMIN 0
-#define XMAX 100
+#define XMAX 500
 #define YMIN 0
-#define YMAX 100
+#define YMAX 500
 
-#define num_POI 20
-#define num_ROVERS 15
-#define DETERMINISTICALLY_PLACED 15
+#define num_POI 200
+#define num_ROVERS 10
+#define DETERMINISTICALLY_PLACED 10
 
 #define TELEPORTATION 1
 
@@ -36,16 +36,24 @@
 
 #define DO_LC 1
 #define DO_HV 0
-#define DO_NSGA 0
-#define DO_SPEA 0
+//#define DO_NSGA 0 /// broken into centralized, distributed.
+//#define DO_SPEA 0 /// broken into centralized, distributed.
+
+/// To replace do_nsga and do_spea.
+#define DO_CENTRALIZED_NSGA 1
+#define DO_CENTRALIZED_SPEA 0
+#define DO_DISTRIBUTED_NSGA 0
+#define DO_DISTRIBUTED_SPEA 0
+#define DO_D_OF_NSGA_DISTRIBUTED 0 /// Requires DO_DIFFERENCE = 1
 
 #define TIMESTEPS 1
-#define GENERATIONS 100
-#define STAT_RUN 1
+#define GENERATIONS 1000
+#define STAT_RUN 10
 
+#define FITNESS_FILE_WATCH 0
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
-#define MIN_OBS_DIST (XMAX/100)
+#define MIN_OBS_DIST 1
 #define MAX_OBS_DIST 3
 
 // NEURAL NETWORK PARAMETERS
@@ -748,7 +756,7 @@ void print_red_blue_statrun(FILE * pFILE4, vector<rover>& fidos, int stat_run)
 	for (int ev = 0; ev < EVOPOP; ev++){
 		fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_global(0));
 		fprintf(pFILE4, "%.5f\t", fidos.at(i).population.at(ev).get_raw_global(1));
-		fprintf(pFILE4, "%d\n", stat_run);
+		fprintf(pFILE4, "%d\n", stat_run+1);
 	}
 }
 
@@ -976,10 +984,10 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
 
 void make_random_pois(landmark* POIs){
 	for (int p = 0; p < num_POI; p++){
-		double x = rand() % 101;
-		double y = rand() % 101;
-		double red_val = rand() % 10 + 1;
-		double blue_val = rand() % 10 + 1;
+		double x = (rand()%XMAX)+1;
+		double y = (rand()%YMAX)+1;
+		double red_val = LYRAND * 10;
+		double blue_val = LYRAND * 10;
 		POIs[p].create(x, y, red_val, blue_val);
 	}
 }
@@ -1055,7 +1063,7 @@ void set_up_all_rovers(vector<rover>& fidos){
 
 int main()
 {
-	cout << "Hello world!" << endl;
+    cout << "Hello world!" << endl;
 	srand(time(NULL));
     cout << "RANDOM SEED: " << time(NULL) << endl;
     
@@ -1111,14 +1119,14 @@ int main()
 
 		cout << "Done with rover setup" << endl;
 
-		NSGA_2 NSGA;
-		NSGA.declare_NSGA_dimension(2);
-
 		cout << "Preliminaries completed" << endl;
 		for (int gen = 0; gen < GENERATIONS; gen++)
 		{
-            if(gen%1 == 0){
-                cout << "Beginning Generation " << gen << endl;}
+            if(gen % (GENERATIONS/100) == 0){
+                //cout << "Beginning Generation " << gen << endl;}
+                cout << "Stat run " << stat_run << " is " << (double)gen/GENERATIONS*100  << " % complete" << endl;
+            }
+            
 			for (int r = 0; r < num_ROVERS; r++)
 			{
 				int SWAPS = 0;
@@ -1191,19 +1199,95 @@ int main()
 			
 			print_red_blue_statrun(pFILE4, fidos, stat_run);
             
-			if (DO_NSGA){
-				for (int r = 0; r < num_ROVERS; r++) {
-					NSGA.NSGA_reset();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-						vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-						NSGA.vector_input(afit, ev);
-					}
-					NSGA.execute();
-					for (int ev = 0; ev < EVOPOP; ev++) {
-						fidos.at(r).population.at(ev).set_fitness(-NSGA.NSGA_member_fitness(ev));
-					}
-				}
-			}
+            if (DO_CENTRALIZED_NSGA){
+                NSGA_2 C_NSGA;
+                C_NSGA.declare_NSGA_dimension(2);
+                C_NSGA.NSGA_reset();
+                int dex=0;
+                for (int ev = 0; ev < EVOPOP; ev++) {
+                    for(int r=0; r<num_ROVERS; r++){
+                    vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+                    C_NSGA.vector_input(afit, dex);
+                    dex++;
+                    }
+                }
+                C_NSGA.execute();
+                dex=0;
+                for (int ev = 0; ev < EVOPOP; ev++) {
+                    for(int r=0; r<num_ROVERS; r++){
+                    fidos.at(r).population.at(ev).set_fitness(-C_NSGA.NSGA_member_fitness(dex));
+                    dex++;
+                    }
+                }
+            }
+            
+            if(DO_DISTRIBUTED_NSGA){
+                vector<NSGA_2> dis_NSGA;
+                /// For each rover, create an NSGA calculator.
+                for(int r=0; r<num_ROVERS; r++){
+                    NSGA_2 N;
+                    N.declare_NSGA_dimension(2);
+                    N.NSGA_reset();
+                    dis_NSGA.push_back(N);
+                }
+                /// For each rover, input all fitnesses into the right NSGA calculator.
+                for(int r=0; r<num_ROVERS; r++){
+                    for (int ev = 0; ev < EVOPOP; ev++) {
+                    vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+                    dis_NSGA.at(r).vector_input(afit,ev);
+                    }
+                    dis_NSGA.at(r).execute();
+                    for (int ev=0; ev < EVOPOP; ev++) {
+                        fidos.at(r).population.at(ev).set_fitness(-dis_NSGA.at(r).NSGA_member_fitness(ev));
+                    }
+                }
+            }
+            
+            if(DO_D_OF_NSGA_DISTRIBUTED){
+                for(int r=0; r<num_ROVERS; r++){
+                    /// Preliminaries.
+                    vector<double> Gs;
+                    vector<double> Gzmis;
+                    vector<double> Ds;
+                    /// Calculate G for all population members.
+                    NSGA_2 G;
+                    G.declare_NSGA_dimension(2);
+                    G.NSGA_reset();
+                    for (int ev = 0; ev < EVOPOP; ev++) {
+                        vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+                        vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
+                        G.vector_input(afit,ev);
+                    }
+                    G.execute();
+                    for(int ev=0; ev< EVOPOP; ev++){
+                        Gs.push_back(-G.NSGA_member_fitness(ev));
+                    }
+                    /// Calculate gzmi for all population members.
+                    for(int ev=0; ev<EVOPOP; ev++){
+                        NSGA_2 gzmi;
+                        gzmi.declare_NSGA_dimension(2);
+                        gzmi.NSGA_reset();
+                        for(int ev2=0; ev2<EVOPOP; ev2++){
+                            vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+                            vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
+                            if(ev2==ev){
+                                gzmi.vector_input(gzmifit,ev);
+                            }
+                            else{
+                                gzmi.vector_input(afit,ev);
+                            }
+                        }
+                        gzmi.execute();
+                        for(int ev2=0; ev2<EVOPOP; ev2++){
+                            Gzmis.push_back(-gzmi.NSGA_member_fitness(ev2));
+                        }
+                    }
+                    /// Calculate D for all population members
+                    for(int ev=0; ev<EVOPOP; ev++){
+                        Ds.push_back(Gs.at(ev)-Gzmis.at(ev));
+                    }
+                }
+            } /// END DO_D_OF_NSGA_DISTRIBUTED
             
 			/*
 			SPEA_2 SPEA;
@@ -1234,8 +1318,10 @@ int main()
 			}
 			*/
 
+            if(FITNESS_FILE_WATCH){
 			print_fitnesses(pFILE3, fidos, gen);
-
+            }
+            
 			for (int r = 0; r < num_ROVERS; r++)
 			{
 				vector<neural_network>* pVNN = &fidos.at(r).population;
