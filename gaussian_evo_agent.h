@@ -6,6 +6,7 @@
 #include <vector>
 #include <math.h>
 #include <map>
+#include <random>
 
 #define LYRAND ((double)rand()/RAND_MAX)
 
@@ -54,10 +55,10 @@ class gaussian_evo_agent;
 
 class gaussian_evo_agent{
     
-    vector<double> means;
+    int num_waypoints;
+    vector< vector<double> > waypoints;
     vector<double> variance;
-    vector< vector<double> > covariance;
-    
+
     vector<double> input_values;
     vector<double> input_minimums;
     vector<double> input_maximums;
@@ -175,7 +176,17 @@ void gaussian_evo_agent::clear_raw_objectives(){
 }
 
 void gaussian_evo_agent::mutate(){
-    /// @LY TODO
+    for(int i=0; i<waypoints.size(); i++){
+        for(int j=0; j<waypoints.at(i).size(); j++){
+            if(rand()%2){
+                waypoints.at(i).at(j) += LYRAND*10;
+            }
+            if(rand()%2){
+                waypoints.at(i).at(j) -= LYRAND*10;
+            }
+        }
+
+    }
 }
 
 void gaussian_evo_agent::set_fitness(double a){
@@ -235,10 +246,55 @@ void gaussian_evo_agent::clean(){
 }
 
 void gaussian_evo_agent::setup(){
-    /// @LY TODO
+    num_waypoints=1;
+    waypoints.clear();
+    variance.clear();
+    vector<double> xy;
+    xy.push_back(LYRAND*XMAX);
+    xy.push_back(LYRAND*YMAX);
+    waypoints.push_back(xy);
+    variance.push_back(0.25);
+    variance.push_back(0.25);
 }
 
 void gaussian_evo_agent::execute(){
-    /// @LY TODO
+    double x;
+    double y;
+    
+    double stdevx = sqrt(variance.at(0));
+    double stdevy = sqrt(variance.at(1));
+    
+    x = waypoints.at(0).at(0);
+    y = waypoints.at(0).at(1);
+    
+    std::default_random_engine generator;
+    std::normal_distribution<double> xdistribution(x,stdevx);
+    std::normal_distribution<double> ydistribution(y,stdevy);
+    
+    double xn = xdistribution(generator);
+    double yn = ydistribution(generator);
+    
+    output_values.push_back(xn);
+    output_values.push_back(yn);
 }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 #endif	/* GEA_H */

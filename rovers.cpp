@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <numeric>
-#include "NNV.h"
+//#include "NNV.h"
 #include "NSGAheader.h"
 #include "gaussian_evo_agent.h"
 //#include "SPEAheader.h"
@@ -23,6 +23,8 @@
 #define XMAX 500
 #define YMIN 0
 #define YMAX 500
+
+#include "gaussian_evo_agent.h"
 
 #define num_POI 200
 #define num_ROVERS 10
@@ -41,7 +43,7 @@
 //#define DO_SPEA 0 /// broken into centralized, distributed.
 
 /// To replace do_nsga and do_spea.
-#define DO_CENTRALIZED_NSGA 1
+#define DO_CENTRALIZED_NSGA 0
 #define DO_CENTRALIZED_SPEA 0
 #define DO_DISTRIBUTED_NSGA 0
 #define DO_DISTRIBUTED_SPEA 0
@@ -80,8 +82,8 @@ void calculate_locals(vector<rover>& fidos, landmark* POIs);
 void calculate_globals(vector<rover>& fidos, landmark* POIs);
 void calculate_differences(vector<rover>& fidos, landmark* POIs);
 void collect(vector<rover>& fidos, landmark* POIs, int ev);
-vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r, vector<rover>& fidos);
-void expand_population(vector<neural_network>* pNN, int r, vector<double>);
+vector<double> kill_lowest_performers(vector<gaussian_evo_agent>* pNN, int r, vector<rover>& fidos);
+void expand_population(vector<gaussian_evo_agent>* pNN, int r, vector<double>);
 
 void angle_resolve(double& angle)
 {
@@ -166,7 +168,7 @@ public:
 	vector<double> store_x, store_y;
 	vector< vector<double> > policy_positions_x, policy_positions_y;
 
-	vector<neural_network> population;
+	vector<gaussian_evo_agent> population;
 	vector<int> selected;
 
 	int basic_sensor(double, double, double, double, double);
@@ -797,7 +799,7 @@ void rover::decide(int ev){
 
 	population.at(selected.at(ev)).clean();
 	population.at(selected.at(ev)).take_vector_input(inp);
-	population.at(selected.at(ev)).execute(INPUTS, OUTPUTS);
+	population.at(selected.at(ev)).execute();
 	//NN[i].scaleoutputs();
 	//}
 	//for(int i=0; i<EVOPOP; i++)
@@ -815,7 +817,7 @@ void rover::decide(int ev){
     }
     if(TELEPORTATION==1){
         population.at(selected.at(ev)).clean();
-        population.at(selected.at(ev)).execute(0,OUTPUTS);
+        population.at(selected.at(ev)).execute();
         xdot = population.at(selected.at(ev)).give_output(0);
         ydot = population.at(selected.at(ev)).give_output(1);
     }
@@ -1036,12 +1038,12 @@ void set_up_all_rovers(vector<rover>& fidos){
     {
         fidos.at(r).reset();
         fidos.at(r).population.clear();
-        neural_network NN;
+        gaussian_evo_agent NN;
          for (int p = 0; p < EVOPOP; p++){
         /// Set up neural network
         if (TELEPORTATION == 0){
             NN.clean();
-            NN.setup(INPUTS, HIDDEN, OUTPUTS);
+            NN.setup();
             for (int in = 0; in < INPUTS; in++){
                 if (in < 4){
                     NN.take_in_min_max(0, 15);
@@ -1056,7 +1058,7 @@ void set_up_all_rovers(vector<rover>& fidos){
         }
         if (TELEPORTATION == 1){
             NN.clean();
-            NN.setup(0, HIDDEN, OUTPUTS);
+            NN.setup();
             for (int out = 0; out < OUTPUTS; out++){
                 NN.take_out_min_max((double)-0.1*XMAX, (double)1.1*XMAX);
             }
@@ -1336,7 +1338,7 @@ int main()
             
 			for (int r = 0; r < num_ROVERS; r++)
 			{
-				vector<neural_network>* pVNN = &fidos.at(r).population;
+				vector<gaussian_evo_agent>* pVNN = &fidos.at(r).population;
 				vector<double> fit = kill_lowest_performers(pVNN, r, fidos);
 				expand_population(pVNN, r, fit);
 			}
@@ -1363,7 +1365,7 @@ int main()
 
 
 
-vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r, vector<rover>& fidos){
+vector<double> kill_lowest_performers(vector<gaussian_evo_agent>* pNN, int r, vector<rover>& fidos){
 	//vector<int> kill;
 	/// r is the rover population we are working with.
 	/// We kill the 'n' lowest performing NNs (mark for replacement in expand_population)
@@ -1398,7 +1400,7 @@ vector<double> kill_lowest_performers(vector<neural_network>* pNN, int r, vector
 	return fitnesses;
 }
 
-void expand_population(vector<neural_network>* pNN, int r, vector<double> fitnesses){
+void expand_population(vector<gaussian_evo_agent>* pNN, int r, vector<double> fitnesses){
 	//vector<int> survivors;
 	/// create new neural networks like the survivors.
 	for (int i = 0; i<EVOPOP / 2; i++){
