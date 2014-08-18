@@ -14,6 +14,7 @@
 #include <numeric>
 #include "NNV.h"
 #include "NSGAheader.h"
+#include "gaussian_evo_agent.h"
 //#include "SPEAheader.h"
 
 #define pi 3.141529
@@ -158,6 +159,7 @@ public:
 	vector<double> local_red_chunks, local_blue_chunks;
 	vector<double> global_red_chunks, global_blue_chunks;
 	vector<double> difference_red_chunks, difference_blue_chunks;
+	vector<double> gzmi_red_chunks, gzmi_blue_chunks;
     //vector<double> sum_local_red, sum_local_blue;
 	//vector<double> sum_global_red, sum_global_blue;
 	//vector<double> sum_difference_red, sum_difference_blue;
@@ -431,8 +433,8 @@ int deterministic_and_random_place(vector<rover>& fidos)
 	//srand(time(NULL));
 	for (int j = left_over; j > 0; j--)
 	{
-		x = rand() % 101;
-		y = rand() % 101;
+		x = rand() % XMAX + 1;
+		y = rand() % YMAX + 1;
 		heading = rand() % 361 * pi / 180;
 		cout << x << " " << y << " " << heading << endl;
 		fidos.at(num_ROVERS - j).place(x, y, heading);
@@ -629,6 +631,8 @@ void clear_rewards(vector<rover>& fidos)
 		fidos.at(i).global_blue_chunks.clear();
 		fidos.at(i).difference_red_chunks.clear();
 		fidos.at(i).difference_blue_chunks.clear();
+		fidos.at(i).gzmi_red_chunks.clear();
+		fidos.at(i).gzmi_blue_chunks.clear();
 	}
 }
 
@@ -891,6 +895,9 @@ void calculate_differences(vector<rover>& fidos, landmark* POIs){
         /// Counterfactuals
         double cred = POIs[p].calc_red_observation_value(POIs[p].distances.at(second_closest));
         double cblue = POIs[p].calc_blue_observation_value(POIs[p].distances.at(second_closest));
+		/// Push Back Counterfactuals (Gzmis)
+		fidos.at(closest).gzmi_red_chunks.push_back(cred);
+		fidos.at(closest).gzmi_blue_chunks.push_back(cblue);
         /// Push Back Difference
         fidos.at(closest).difference_red_chunks.push_back(gred - cred);
         fidos.at(closest).difference_blue_chunks.push_back(gblue - cblue);
@@ -939,10 +946,15 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
                 //cout << "DDR: " << fidos.at(r).global_red_chunks.size() << endl;
                 //cout << "DDB: " << fidos.at(r).global_blue_chunks.size() << endl;
                 
+				double gzmired = accumulate(fidos.at(r).gzmi_red_chunks.begin(), fidos.at(r).gzmi_red_chunks.end(), 0.0);
+				double gzmiblue = accumulate(fidos.at(r).gzmi_blue_chunks.begin(), fidos.at(r).gzmi_blue_chunks.end(), 0.0);
                 double differencered = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
                 double differenceblue = accumulate(fidos.at(r).difference_blue_chunks.begin(),fidos.at(r).difference_blue_chunks.end(),0.0);
-                fidos.at(r).population.at(thisone).clear_raw_objectives();
+				fidos.at(r).population.at(thisone).clear_raw_gzmi();
                 fidos.at(r).population.at(thisone).clear_raw_difference();
+				fidos.at(r).population.at(thisone).clear_raw_objectives();
+				fidos.at(r).population.at(thisone).set_next_raw_gzmi(gzmired);
+				fidos.at(r).population.at(thisone).set_next_raw_gzmi(gzmiblue);
                 fidos.at(r).population.at(thisone).set_next_raw_difference(differencered);
                 fidos.at(r).population.at(thisone).set_next_raw_difference(differenceblue);
                 fidos.at(r).population.at(thisone).set_next_raw_objective(differencered);
