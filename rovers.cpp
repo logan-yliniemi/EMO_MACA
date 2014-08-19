@@ -14,7 +14,7 @@
 #include <numeric>
 //#include "NNV.h"
 #include "NSGAheader.h"
-#include "gaussian_evo_agent.h"
+//#include "gaussian_evo_agent.h"
 //#include "SPEAheader.h"
 
 #define pi 3.141529
@@ -33,11 +33,11 @@
 #define TELEPORTATION 1
 
 #define DO_LOCAL 0
-#define DO_GLOBAL 0
-#define DO_DIFFERENCE 1
+#define DO_GLOBAL 1
+#define DO_DIFFERENCE 0
 #define ALWAYS 1 /// For pieces that need to run regardless of options.
 
-#define DO_LC 1
+#define DO_LC 0
 #define DO_HV 0
 //#define DO_NSGA 0 /// broken into centralized, distributed.
 //#define DO_SPEA 0 /// broken into centralized, distributed.
@@ -45,13 +45,13 @@
 /// To replace do_nsga and do_spea.
 #define DO_CENTRALIZED_NSGA 0
 #define DO_CENTRALIZED_SPEA 0
-#define DO_DISTRIBUTED_NSGA 0
+#define DO_DISTRIBUTED_NSGA 1
 #define DO_DISTRIBUTED_SPEA 0
 #define DO_D_OF_NSGA_DISTRIBUTED 0 /// Requires DO_DIFFERENCE = 1
 
 #define TIMESTEPS 1
-#define GENERATIONS 1000
-#define STAT_RUN 10
+#define GENERATIONS 100
+#define STAT_RUN 2
 
 #define FITNESS_FILE_WATCH 0
 #define ROVERWATCH 0
@@ -65,7 +65,19 @@
 #define OUTPUTS 2
 #define EVOPOP 100
 
-#define POI_GENERATE 0
+// POI setup toggles/values
+#define POI_GENERATE 1 // By itself, generates entirely random POIs once for each statistical run. Set to 0 to read in from file.
+#define GENERATE_ONCE 1 // Generates the POIs once, then uses file for all statistical runs // Requires POI_GENERATE = 1
+
+#define POI_GENERATE_RED_BLUE_SMALL 1 // Requires POI_GENERATE = 1 // Can be used with GENERATE_ONCE
+#define MAX_VALUES 0 // Random POI value between 0 and _VAL
+#define SET_VALUES 1 // Set POI value as _VAL
+#define RED_VAL 10  // These values are the max of random values or
+#define BLUE_VAL 10 // what the values are set to.
+#define SMALL_VAL 5
+#define CHANCE_FOR_ONLY_RED 0.25    //   If CHANCE_FOR_ONLY_RED and CHANCE_FOR_ONLY_BLUE are not 1, the leftover chance is the
+#define CHANCE_FOR_ONLY_BLUE 0.25   //   chance for small combination of red and blue. If both are 1, the chance leftover from
+#define CHANCE_FOR_SMALL 1          //   CHANCE_FOR_SMALL is split evenly between making a red only POI and blue only POI.
 
 using namespace std;
 
@@ -220,6 +232,7 @@ public:
 
 void landmark::create(double xpos, double ypos, double red, double blue)
 {
+	/// Creates a POI with an x position, y position, red value, and blue value
 	x = xpos;
 	y = ypos;
 	red_value = red;
@@ -232,12 +245,14 @@ void landmark::create(double xpos, double ypos, double red, double blue)
 
 void landmark::reset()
 {
+	/// Reset the POI's red and blue values to what they were set to at the beginning
 	red_value = start_red;
 	blue_value = start_blue;
 }
 
 int landmark::find_kth_closest_rover(int k, vector<rover>& fidos)
 {
+	/// Finds the Kth closest rover to the POI
 	int closest;
 	double closest_distance;
 	vector<double> distances;
@@ -264,6 +279,7 @@ int landmark::find_kth_closest_rover(int k, vector<rover>& fidos)
 }
 
 int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover>& fidos){
+	/// Finds the Kth closest rover to the POI, disregarding the Ith rover
 	int closest;
 	double closest_distance;
 	vector<double> distances;
@@ -293,6 +309,7 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover>& fidos){
 
 double landmark::find_dist_to_rover(int rvr, vector<rover>& fidos)
 {
+	/// Calculates the distance from the POI to the RVRth rover in the vector of rovers
 	double delx, dely;
 	delx = fidos.at(rvr).x - x;
 	dely = fidos.at(rvr).y - y;
@@ -303,6 +320,8 @@ double landmark::find_dist_to_rover(int rvr, vector<rover>& fidos)
 
 void landmark::find_dist_to_all_rovers(vector<rover>& fidos)
 {
+	/// Calculates the distance from the POI to each rover and stores them in 
+	/// the POI's member vector "distances"
 	distances.clear();
 	for (int i = 0; i < num_ROVERS; i++)
 	{
@@ -312,6 +331,7 @@ void landmark::find_dist_to_all_rovers(vector<rover>& fidos)
 
 double landmark::calc_red_observation_value(double d)
 {
+	/// Calculates and returns the red observed value given a distance to the POI of "d"
 	double val;
 	d = fmax(d, min_obs_distance);
 	if (d>max_obs_distance)
@@ -324,6 +344,7 @@ double landmark::calc_red_observation_value(double d)
 
 double landmark::calc_blue_observation_value(double d)
 {
+	/// Calculates and returns the blue observed value given a distance to the POI of "d"
 	double val;
 	d = fmax(d, min_obs_distance);
 	if (d>max_obs_distance)
@@ -336,7 +357,7 @@ double landmark::calc_blue_observation_value(double d)
 
 void rover::replace()
 {
-	/// resets the rovers to starting position after each policy is implemented
+	/// Resets the rovers to what they were set to at the beginning
 	heading = headingstart;
 	x = xstart;
 	y = ystart;
@@ -360,6 +381,7 @@ void rover::reset()
 
 void rover::move()
 {
+	/// THE ROVERS ARE MOVING
     if(TELEPORTATION==0){
 	x += xdot;
 	y += ydot;
@@ -407,7 +429,7 @@ int rover::place(double xspot, double yspot, double head)
 
 int deterministic_and_random_place(vector<rover>& fidos)
 {
-	// pseudo-randomly place a number of rovers
+	// Set a list of values to initialize a number of rovers
 	double x, y, heading;
 	vector<double> xlist = { 40, 50, 50, 60, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50 };
 	vector<double> ylist = { 60, 40, 60, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50 };
@@ -446,7 +468,8 @@ int deterministic_and_random_place(vector<rover>& fidos)
 
 int rover::basic_sensor(double roverx, double rovery, double rover_heading, double tarx, double tary)
 {
-
+	/// Determines the relative position of a target (rover or POI) with respect to
+	/// a given rover.
 	double dx;
 	double dy;
 
@@ -727,19 +750,15 @@ void print_poi_locations(FILE * pFILE2, vector<double> x, vector<double> y)
 
 void print_poi_all_values(FILE * pFILE5, vector<double> x, vector<double> y, vector<double> red, vector<double> blue)
 {
-	static int only_once;
-	if (only_once == 0){
-        cout << "PUTTING POIs IN FILE!!" << endl;
-		for (int i = 0; i < num_POI; i++)
-		{
-			fprintf(pFILE5, "%.4f\t%.4f\t%.4f\t%.4f\n",
-                    x.at(i),
-                    y.at(i),
-                    red.at(i),
-                    blue.at(i));
-		}
+    cout << "PUTTING POIs IN FILE!!" << endl;
+	for (int i = 0; i < num_POI; i++)
+	{
+		fprintf(pFILE5, "%.4f\t%.4f\t%.4f\t%.4f\n",
+                x.at(i),
+                y.at(i),
+                red.at(i),
+                blue.at(i));
 	}
-	only_once++;
 }
 
 void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
@@ -1006,30 +1025,116 @@ void make_random_pois(landmark* POIs){
 	}
 }
 
-void set_up_all_pois(landmark* POIs){
-    if(POI_GENERATE==0){
-        cout << "READING POIs FROM FILE!" << endl;
-	int n = 1, n1 = 0, n2 = 0, n3 = 0, n4 = 0;
-	double num = 0;
-	double x, y, red, blue;
+void generate_red_poi(landmark* POIs, int p){
+	double x = (rand() % XMAX) + 1;
+	double y = (rand() % YMAX) + 1;
+	double red_val = 0;
+	if (MAX_VALUES){
+		red_val = ceil(LYRAND * RED_VAL);}
+	else if (SET_VALUES){
+		red_val = RED_VAL;}
+	POIs[p].create(x, y, red_val, 0);
+}
 
-	ifstream datafile("poi_values.txt");
-	while (datafile >> num){
-		if (n % 4 == 1) x = num, n1++;
-		else if (n % 4 == 2) y = num, n2++;
-		else if (n % 4 == 3) red = num, n3++;
-		else if (n % 4 == 0){
-			blue = num;
-			POIs[n4].create(x, y, red, blue);
-			n4++;
+void generate_blue_poi(landmark* POIs, int p){
+	double x = (rand() % XMAX) + 1;
+	double y = (rand() % YMAX) + 1;
+	double blue_val = 0;
+	if (MAX_VALUES){
+		blue_val = ceil(LYRAND * BLUE_VAL);}
+	else if (SET_VALUES){
+		blue_val = BLUE_VAL;}
+	POIs[p].create(x, y, 0, blue_val);
+}
+
+void generate_small_poi(landmark* POIs, int p){
+	double random = LYRAND;
+	double x = (rand() % XMAX) + 1;
+	double y = (rand() % YMAX) + 1;
+	double red_val = 0, blue_val = 0;
+	if (MAX_VALUES){
+		red_val = ceil(random * SMALL_VAL);
+		blue_val = ceil(random * SMALL_VAL);}
+	else if (SET_VALUES){
+		red_val = SMALL_VAL;
+		blue_val = SMALL_VAL;}
+	POIs[p].create(x, y, red_val, blue_val);
+}
+
+void red_blue_small(landmark* POIs){
+	for (int p = 0; p < num_POI; p++){
+		double random = LYRAND;
+		if (CHANCE_FOR_ONLY_RED != 1 && CHANCE_FOR_ONLY_BLUE != 1){
+			if (random < CHANCE_FOR_ONLY_RED){ generate_red_poi(POIs, p); }
+			else if (random > 1 - CHANCE_FOR_ONLY_BLUE){ generate_blue_poi(POIs, p); }
+			else { generate_small_poi(POIs, p); }
 		}
-		n++;
+		else if (CHANCE_FOR_ONLY_RED == 1 && CHANCE_FOR_ONLY_BLUE == 1){
+			int red_chance = (1 - CHANCE_FOR_SMALL)/2.0;
+			if (random < CHANCE_FOR_SMALL){ generate_small_poi(POIs, p); }
+			else if (random < 1 - red_chance){ generate_red_poi(POIs, p); }
+			else { generate_blue_poi(POIs, p); }
+		}
+		else{ cout << "HOLY CRAP CAN'T YOU DO MATHS YOU GOON?!?!" << endl; }
 	}
-        datafile.close();}
-    else{
-        cout << "MAKING RANDOM POIs!" << endl;
-        make_random_pois(POIs);
-    }
+}
+
+void set_up_all_pois(landmark* POIs){
+	static int generate_once=0;
+	
+	if (generate_once == 0){
+		if (POI_GENERATE == 0){
+			cout << "READING POIs FROM FILE!" << endl;
+			int n = 1, n1 = 0, n2 = 0, n3 = 0, n4 = 0;
+			double num = 0;
+			double x, y, red, blue;
+
+			ifstream datafile("poi_values.txt");
+			while (datafile >> num){
+				if (n % 4 == 1) x = num, n1++;
+				else if (n % 4 == 2) y = num, n2++;
+				else if (n % 4 == 3) red = num, n3++;
+				else if (n % 4 == 0){
+					blue = num;
+					POIs[n4].create(x, y, red, blue);
+					n4++;
+				}
+				n++;
+			}
+			datafile.close();
+		}
+		else if (POI_GENERATE_RED_BLUE_SMALL){
+			cout << "MAKING RED/BLUE/SMALL POIs!" << endl;
+			red_blue_small(POIs);
+		}
+		else{
+			cout << "MAKING RANDOM POIs!" << endl;
+			make_random_pois(POIs);
+		}
+	}
+
+	else {
+		cout << "READING POIs FROM FILE!" << endl;
+		int n = 1, n1 = 0, n2 = 0, n3 = 0, n4 = 0;
+		double num = 0;
+		double x, y, red, blue;
+
+		ifstream datafile("poi_values.txt");
+		while (datafile >> num){
+			if (n % 4 == 1) x = num, n1++;
+			else if (n % 4 == 2) y = num, n2++;
+			else if (n % 4 == 3) red = num, n3++;
+			else if (n % 4 == 0){
+				blue = num;
+				POIs[n4].create(x, y, red, blue);
+				n4++;
+			}
+			n++;
+		}
+		datafile.close();
+	}
+
+	if (GENERATE_ONCE) { generate_once++; }
 }
 
 void set_up_all_rovers(vector<rover>& fidos){
@@ -1119,9 +1224,10 @@ int main()
 		}
 
 		print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
-		if(POI_GENERATE)
-        {
-            print_poi_all_values(pFILE5, poi_x_locations, poi_y_locations, poi_red_values, poi_blue_values);
+		if(POI_GENERATE){
+			static int only_once;
+			if (only_once == 0) { print_poi_all_values(pFILE5, poi_x_locations, poi_y_locations, poi_red_values, poi_blue_values); }
+			if (GENERATE_ONCE) { only_once++; }
         }
 		/// END Create Landmarks
 
