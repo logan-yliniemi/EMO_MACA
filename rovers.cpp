@@ -12,9 +12,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <numeric>
-//#include "NNV.h"
 #include "NSGAheader.h"
-//#include "gaussian_evo_agent.h"
 //#include "SPEAheader.h"
 
 #define pi 3.141529
@@ -39,8 +37,8 @@
 
 #define DO_LC 0
 #define DO_HV 0
-//#define DO_NSGA 0 /// broken into centralized, distributed.
-//#define DO_SPEA 0 /// broken into centralized, distributed.
+//#define DO_NSGA 0 /// moved into centralized, distributed.
+//#define DO_SPEA 0 /// moved into centralized, distributed.
 
 /// To replace do_nsga and do_spea.
 #define DO_CENTRALIZED_NSGA 0
@@ -174,9 +172,6 @@ public:
 	vector<double> global_red_chunks, global_blue_chunks;
 	vector<double> difference_red_chunks, difference_blue_chunks;
 	vector<double> gzmi_red_chunks, gzmi_blue_chunks;
-    //vector<double> sum_local_red, sum_local_blue;
-	//vector<double> sum_global_red, sum_global_blue;
-	//vector<double> sum_difference_red, sum_difference_blue;
 	vector<double> store_x, store_y;
 	vector< vector<double> > policy_positions_x, policy_positions_y;
 
@@ -309,7 +304,7 @@ int landmark::find_kth_closest_rover_not_i(int k, int i, vector<rover>& fidos){
 
 double landmark::find_dist_to_rover(int rvr, vector<rover>& fidos)
 {
-	/// Calculates the distance from the POI to the RVRth rover in the vector of rovers
+	/// Calculates the distance from the POI to the rvr'th rover in the vector of rovers
 	double delx, dely;
 	delx = fidos.at(rvr).x - x;
 	dely = fidos.at(rvr).y - y;
@@ -383,6 +378,7 @@ void rover::move()
 {
 	/// THE ROVERS ARE MOVING
     if(TELEPORTATION==0){
+    /// Rovers move incrementally in the x, y direction
 	x += xdot;
 	y += ydot;
 	xresolve(x);
@@ -390,12 +386,13 @@ void rover::move()
     heading = atan2(ydot, xdot);
     }
     if(TELEPORTATION==1){
+        /// Rovers move to absolute position (xdot,ydot)
         x=xdot;
         y=ydot;
         heading=0;
         if(ROVERWATCH && ID==ROVERWATCHDEX){
         cout << x << "\t" << y << "\t";
-            // cout << endl;
+        cout << endl;
         }
     }
 }
@@ -692,23 +689,23 @@ void rover_place_test(vector<rover>& fidos)
 {
 	double x, y, heading;
 
-	x = 50;// 10;
-	y = 50;// 20;
+	x = 50;
+	y = 50;
 	heading = 0;
 	fidos.at(0).place(x, y, heading);
 
-	x = 50;//10;
-	y = 50;//80;
+	x = 50;
+	y = 50;
 	heading = 0;
 	fidos.at(1).place(x, y, heading);
 
-	x = 50;//90;
-	y = 50;//20;
+	x = 50;
+	y = 50;
 	heading = 0;
 	fidos.at(2).place(x, y, heading);
 
-	x = 50;//90;
-	y = 50;//80;
+	x = 50;
+	y = 50;
 	heading = 0;
 	fidos.at(3).place(x, y, heading);
 }
@@ -927,9 +924,8 @@ void calculate_differences(vector<rover>& fidos, landmark* POIs){
 
 void collect(vector<rover>& fidos, landmark* POIs, int ev){
     /// 1) Assign reward units to policies.
-    /// 2) ?? ///@DW
+    /// 3) Stores rover policy outputs for visualization.
     
-    /// 1)
     for (int r = 0; r < num_ROVERS; r++)
     {
         int thisone = fidos.at(r).selected.at(ev);
@@ -1170,7 +1166,6 @@ void set_up_all_rovers(vector<rover>& fidos){
         }
         
         /// create population of neural networks.
-       
             fidos.at(r).population.push_back(NN);
             fidos.at(r).selected.push_back(p);
         }
@@ -1202,12 +1197,6 @@ int main()
 	{
 		/// BGN Create Landmarks
 		landmark POIs[num_POI];
-
-		/// x, y, r, b;
-		//POIs[0].create(10, 10, 10, 10);
-		//POIs[1].create(10, 90, 10, 10);
-		//POIs[2].create(90, 10, 10, 00);
-		//POIs[3].create(90, 90, 10, 10);
 
 		//make_random_pois(POIs);
 		set_up_all_pois(POIs);

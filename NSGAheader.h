@@ -37,7 +37,7 @@ bool sort_nsga_second_dim(NSGA_mem const &x, NSGA_mem const &y)
 {
 	return x.coordinates.at(1) < y.coordinates.at(1);
 }
-bool sort_nsga_third_tim(NSGA_mem const &x, NSGA_mem const &y)
+bool sort_nsga_third_dim(NSGA_mem const &x, NSGA_mem const &y)
 {
 	return x.coordinates.at(2) < y.coordinates.at(2);
 }
@@ -58,14 +58,7 @@ public:
 	int NSGA_dimension;
 	void find_tier();
 	void find_proximity(vector<NSGA_mem>* pM);
-	void find_proxy();
-	void calc_fitness();
-
 	void interpret();
-	//int lib_NSGA_index;
-
-
-	//void find_();
 
 	void vector_input(vector<double>, int);
 	void two_dim_input(double, double, int);
@@ -78,6 +71,7 @@ public:
 	double NSGA_member_fitness(int);
 	void look();
 	void declare_NSGA_dimension(int);
+    void membersort(vector<NSGA_mem>* pM, int);
 
 	void show_tiers();
 	bool first_dominates_second(vector<double> a, vector<double> b);
@@ -142,6 +136,27 @@ double vectordist(vector<double> a, vector<double> b){
 }
 #endif
 
+void NSGA_2::membersort(vector<NSGA_mem>* pM, int obj){
+    if(obj > pM->at(0).coordinates.size()){
+        std::invalid_argument( "NSGA Requested higher dimensional vector than given.");
+    }
+    
+    /// Sort vector of members by objective value, lowest to highest
+    for(int z=0; z<pM->size()+1; z++){
+    for(int i=0; i<pM->size()-1; i++){
+        int j=i+1;
+        double val1 = pM->at(i).coordinates.at(obj);
+        double val2 = pM->at(j).coordinates.at(obj);
+        if(val2 < val1){
+            NSGA_mem temp;
+            temp = pM->at(i);
+            pM->at(i) = pM->at(j);
+            pM->at(j) = temp;
+        }
+    }
+    }
+}
+
 void NSGA_2::find_proximity(vector<NSGA_mem>* pM) { /// Jan 2014 redux of find_proximity
 	if (NSGA_DEBUG){
 		cout << "NSGA::proxy in" << endl;
@@ -159,6 +174,9 @@ void NSGA_2::find_proximity(vector<NSGA_mem>* pM) { /// Jan 2014 redux of find_p
 			sort(pM->begin(), pM->end(), sort_nsga_first_dim);
 		if (dim == 1)
 			sort(pM->begin(), pM->end(), sort_nsga_second_dim);
+        if (dim == 2)
+            sort(pM->begin(), pM->end(), sort_nsga_third_dim);
+        if (dim > 2) membersort(pM,dim);
 		if (NSGA_DEBUG){
 			for (int i = 0; i<pM->size(); i++){
 				cout << "Member " << i << endl;
@@ -176,7 +194,6 @@ void NSGA_2::find_proximity(vector<NSGA_mem>* pM) { /// Jan 2014 redux of find_p
 		/// Do the n-dimensional box for those 2 points
 		/// add this to the distance for the point
 	}
-	//}
 
 	/// turn distances into a proximity score.
 	// find max raw distance score.
@@ -221,8 +238,8 @@ void NSGA_2::find_tier() {
 		if (remaining_indexes.size() == 0){
 			break;
 		}
-		/// of each remaining point, find the NDS.
-
+        
+		/// of remaining points, find the NDS.
 		for (int i = 0; i<remaining_indexes.size(); i++){
 			for (int j = 0; j<remaining_indexes.size(); j++){
 				if (i == j){ continue; }
@@ -283,13 +300,7 @@ void NSGA_2::size_check() {
 
 void NSGA_2::execute() {
 	if (NSGA_DEBUG){ cout << "NSGA::EXECUTE in " << endl; }
-	//size_check();
 	find_tier();
-	//size_check();
-	// done in find_tier    find_proximity();
-	//size_check();
-	//interpret();
-	//size_check();
 }
 
 void NSGA_2::get_NSGA_fitness(vector<double>* pFitness) {
@@ -309,7 +320,7 @@ void NSGA_2::show_tiers()
 /// INSTRUCTIONS:
 /*
 * NSGA_2 NSGA;
-* NSGA.declare_NSGA_dimension(2); /// only valid for 2 dimensions at current moment
+* NSGA.declare_NSGA_dimension(2);
 * NSGA.NSGA_reset();
 * <<<<INPUTS GO IN HERE, probably NSGA.two_dim_input(a,b);>>>>>
 * NSGA.execute();
@@ -317,6 +328,5 @@ void NSGA_2::show_tiers()
 * vector<double>* pFit=&fitnesses;
 * NSGA.get_NSGA_fitness(pFit);
 */
-
 
 #endif // NSGAHEADER_H_INCLUDED

@@ -180,12 +180,9 @@ void gaussian_evo_agent::mutate(){
         for(int j=0; j<waypoints.at(i).size(); j++){
             if(rand()%2){
                 waypoints.at(i).at(j) += LYRAND*10;
-            }
-            if(rand()%2){
                 waypoints.at(i).at(j) -= LYRAND*10;
             }
         }
-
     }
 }
 
@@ -274,27 +271,11 @@ void gaussian_evo_agent::execute(){
     double xn = xdistribution(generator);
     double yn = ydistribution(generator);
     
+    //cout << "X,Y Coordinates: " << xn << " , " << yn << endl;
+    
     output_values.push_back(xn);
     output_values.push_back(yn);
 }
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
             
             
 #endif	/* GEA_H */
