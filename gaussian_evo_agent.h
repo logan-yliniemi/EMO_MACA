@@ -297,4 +297,4 @@ void gaussian_evo_agent::execute(){
             
             
             
-#endif	/* GEA_H */
+#endif	//GEA_H 
