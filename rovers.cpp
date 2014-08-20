@@ -32,25 +32,37 @@
 
 #define TELEPORTATION 1
 
-#define DO_LOCAL 0
-#define DO_GLOBAL 1
-#define DO_DIFFERENCE 0
 #define ALWAYS 1 /// For pieces that need to run regardless of options.
 
-#define DO_LC 0
-#define DO_HV 0
+/// SELECT THE METHODS THAT YOU WOULD LIKE TO IMPLEMENT
+#define G_LC 1 //
+#define D_LC 1 //
+#define G_HV 1 //
+#define D_HV 1 //
+#define N_G_DIS 1 //
+#define N_D_DIS 1 //
+#define N_G_CEN 1 //
+#define N_D_CEN 1 //
+#define D_N_DIS 0 //
+
+bool DO_LOCAL = false;
+bool DO_GLOBAL = false;
+bool DO_DIFFERENCE = false;
+
+bool DO_LC = false;
+bool DO_HV = false;
 //#define DO_NSGA 0 /// broken into centralized, distributed.
 //#define DO_SPEA 0 /// broken into centralized, distributed.
 
 /// To replace do_nsga and do_spea.
-#define DO_CENTRALIZED_NSGA 0
-#define DO_CENTRALIZED_SPEA 0
-#define DO_DISTRIBUTED_NSGA 1
-#define DO_DISTRIBUTED_SPEA 0
-#define DO_D_OF_NSGA_DISTRIBUTED 0 /// Requires DO_DIFFERENCE = 1
+bool DO_CENTRALIZED_NSGA = false;
+bool DO_CENTRALIZED_SPEA = false;
+bool DO_DISTRIBUTED_NSGA = false;
+bool DO_DISTRIBUTED_SPEA = false;
+bool DO_D_OF_NSGA_DISTRIBUTED = false;
 
 #define TIMESTEPS 1
-#define GENERATIONS 100
+#define GENERATIONS 50
 #define STAT_RUN 2
 
 #define FITNESS_FILE_WATCH 0
@@ -63,7 +75,7 @@
 #define INPUTS 0
 #define HIDDEN 5
 #define OUTPUTS 2
-#define EVOPOP 100
+#define EVOPOP 20
 
 // POI setup toggles/values
 #define POI_GENERATE 1 // By itself, generates entirely random POIs once for each statistical run. Set to 0 to read in from file.
@@ -75,9 +87,8 @@
 #define RED_VAL 10  // These values are the max of random values or
 #define BLUE_VAL 10 // what the values are set to.
 #define SMALL_VAL 5
-#define CHANCE_FOR_ONLY_RED 0.25    //   If CHANCE_FOR_ONLY_RED and CHANCE_FOR_ONLY_BLUE are not 1, the leftover chance is the
-#define CHANCE_FOR_ONLY_BLUE 0.25   //   chance for small combination of red and blue. If both are 1, the chance leftover from
-#define CHANCE_FOR_SMALL 1          //   CHANCE_FOR_SMALL is split evenly between making a red only POI and blue only POI.
+#define CHANCE_FOR_ONLY_RED 0.25    //   The leftover chance out of 1 is the 
+#define CHANCE_FOR_ONLY_BLUE 0.25   //   chance of generating a "small" POI.
 
 using namespace std;
 
@@ -1064,18 +1075,13 @@ void generate_small_poi(landmark* POIs, int p){
 void red_blue_small(landmark* POIs){
 	for (int p = 0; p < num_POI; p++){
 		double random = LYRAND;
-		if (CHANCE_FOR_ONLY_RED != 1 && CHANCE_FOR_ONLY_BLUE != 1){
-			if (random < CHANCE_FOR_ONLY_RED){ generate_red_poi(POIs, p); }
-			else if (random > 1 - CHANCE_FOR_ONLY_BLUE){ generate_blue_poi(POIs, p); }
-			else { generate_small_poi(POIs, p); }
-		}
-		else if (CHANCE_FOR_ONLY_RED == 1 && CHANCE_FOR_ONLY_BLUE == 1){
-			int red_chance = (1 - CHANCE_FOR_SMALL)/2.0;
-			if (random < CHANCE_FOR_SMALL){ generate_small_poi(POIs, p); }
-			else if (random < 1 - red_chance){ generate_red_poi(POIs, p); }
-			else { generate_blue_poi(POIs, p); }
-		}
-		else{ cout << "HOLY CRAP CAN'T YOU DO MATHS YOU GOON?!?!" << endl; }
+		if (random < CHANCE_FOR_ONLY_RED){ generate_red_poi(POIs, p); }
+		else if (random > 1 - CHANCE_FOR_ONLY_BLUE){ generate_blue_poi(POIs, p); }
+		else { generate_small_poi(POIs, p); }
+	}
+	double more_than_one = CHANCE_FOR_ONLY_RED + CHANCE_FOR_ONLY_BLUE;
+	if (more_than_one > 1){
+		throw std::invalid_argument("NO CHANCE FOR SMALL POIs");
 	}
 }
 
@@ -1180,6 +1186,155 @@ void set_up_all_rovers(vector<rover>& fidos){
     //rover_place_test(fidos);
 }
 
+void do_methods(vector<int>& methods){
+	if (G_LC) { methods.push_back(0); }
+	if (D_LC) { methods.push_back(1); }
+	if (G_HV) { methods.push_back(2); }
+	if (D_HV) { methods.push_back(3); }
+	if (N_G_DIS) { methods.push_back(4); }
+	if (N_D_DIS) { methods.push_back(5); }
+	if (N_G_CEN) { methods.push_back(6); }
+	if (N_D_CEN) { methods.push_back(7); }
+	if (D_N_DIS) { methods.push_back(8); }
+}
+
+void select_method(int method){
+	if (method == 0){
+		cout << "GLOBAL AND LINEAR COMBINATION" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = true;
+		DO_DIFFERENCE = false;
+
+		DO_LC = true;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; /// Requires DO_DIFFERENCE = true
+	}
+
+	if (method == 1){
+		cout << "DIFFERENCE AND LINEAR COMBINATION" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = false;
+		DO_DIFFERENCE = true;
+
+		DO_LC = true;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 2){
+		cout << "GLOBAL AND HYPER VOLUME" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = true;
+		DO_DIFFERENCE = false;
+
+		DO_LC = false;
+		DO_HV = true;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 3){
+		cout << "DIFFERENCE AND HYPER VOLUME" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = false;
+		DO_DIFFERENCE = true;
+
+		DO_LC = false;
+		DO_HV = true;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 4){
+		cout << "GLOBAL IN NSGA DISTRIBUTED" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = true;
+		DO_DIFFERENCE = false;
+
+		DO_LC = false;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = true;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 5){
+		cout << "DIFFERENCE IN NSGA DISTRIBUTED" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = false;
+		DO_DIFFERENCE = true;
+
+		DO_LC = false;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = true;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 6){
+		cout << "GLOBAL IN NSGA CENTRALIZED" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = true;
+		DO_DIFFERENCE = false;
+
+		DO_LC = false;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = true;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 7){
+		cout << "DIFFERENCE IN NSGA CENTRALIZED" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = false;
+		DO_DIFFERENCE = true;
+
+		DO_LC = false;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = true;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = false; 
+	}
+
+	if (method == 8){
+		cout << "DIFFERENCE OF NSGA DISTRIBUTED" << endl;
+		DO_LOCAL = false;
+		DO_GLOBAL = false;
+		DO_DIFFERENCE = true;
+
+		DO_LC = false;
+		DO_HV = false;
+		DO_CENTRALIZED_NSGA = false;
+		DO_CENTRALIZED_SPEA = false;
+		DO_DISTRIBUTED_NSGA = false;
+		DO_DISTRIBUTED_SPEA = false;
+		DO_D_OF_NSGA_DISTRIBUTED = true; /// Requires DO_DIFFERENCE = true
+	}
+}
+
 int main()
 {
     cout << "Hello world!" << endl;
@@ -1188,284 +1343,300 @@ int main()
     
     if(TELEPORTATION){cout << "TELEPORTATION RUN" << endl;}
 
-	FILE * pFILE1 = fopen("rover_locations2.txt", "w");
-	FILE * pFILE2 = fopen("poi_locations.txt", "w");
-	FILE * pFILE3 = fopen("fitnesses.txt", "w");
-	FILE * pFILE4 = fopen("red_blue_statrun.txt", "w");
+	//FILE * pFILE1 = fopen("rover_locations2.txt", "w");
+	//FILE * pFILE2 = fopen("poi_locations.txt", "w");
+	//FILE * pFILE3 = fopen("fitnesses.txt", "w");
     FILE * pFILE5;
     if(POI_GENERATE){
         cout << "GENERATING POIs TO SAVE TO FILE" << endl;
 	pFILE5 = fopen("poi_values.txt", "w");
     }
 
-	for (int stat_run = 0; stat_run < STAT_RUN; stat_run++)
-	{
-		/// BGN Create Landmarks
-		landmark POIs[num_POI];
+	vector<int> methods;
+	do_methods(methods);
 
-		/// x, y, r, b;
-		//POIs[0].create(10, 10, 10, 10);
-		//POIs[1].create(10, 90, 10, 10);
-		//POIs[2].create(90, 10, 10, 00);
-		//POIs[3].create(90, 90, 10, 10);
+	for (int m = 0; m < methods.size(); m++){
+		int method = methods.at(m);
+		select_method(method);
+		FILE * pFILE1 = NULL;
+		if (method == 0){ pFILE1 = fopen("RBS_G_LC.txt", "w"); }
+		if (method == 1){ pFILE1 = fopen("RBS_D_LC.txt", "w"); }
+		if (method == 2){ pFILE1 = fopen("RBS_G_HV.txt", "w"); }
+		if (method == 3){ pFILE1 = fopen("RBS_D_HV.txt", "w"); }
+		if (method == 4){ pFILE1 = fopen("RBS_N_G_DIS.txt", "w"); }
+		if (method == 5){ pFILE1 = fopen("RBS_N_D_DIS.txt", "w"); }
+		if (method == 6){ pFILE1 = fopen("RBS_N_G_CEN.txt", "w"); }
+		if (method == 7){ pFILE1 = fopen("RBS_N_D_CEN.txt", "w"); }
+		if (method == 8){ pFILE1 = fopen("RBS_D_N_DIS.txt", "w"); }
 
-		//make_random_pois(POIs);
-		set_up_all_pois(POIs);
-
-		vector<double> poi_x_locations, poi_y_locations;
-		vector<double> poi_red_values, poi_blue_values;
-
-		for (int j = 0; j < num_POI; j++)
+		for (int stat_run = 0; stat_run < STAT_RUN; stat_run++)
 		{
-			poi_x_locations.push_back(POIs[j].x);
-			poi_y_locations.push_back(POIs[j].y);
-			poi_red_values.push_back(POIs[j].start_red);
-			poi_blue_values.push_back(POIs[j].start_blue);
+			/// BGN Create Landmarks
+			landmark POIs[num_POI];
+
+			/// x, y, r, b;
+			//POIs[0].create(10, 10, 10, 10);
+			//POIs[1].create(10, 90, 10, 10);
+			//POIs[2].create(90, 10, 10, 00);
+			//POIs[3].create(90, 90, 10, 10);
+
+			//make_random_pois(POIs);
+			set_up_all_pois(POIs);
+
+			vector<double> poi_x_locations, poi_y_locations;
+			vector<double> poi_red_values, poi_blue_values;
+
+			for (int j = 0; j < num_POI; j++)
+			{
+				poi_x_locations.push_back(POIs[j].x);
+				poi_y_locations.push_back(POIs[j].y);
+				poi_red_values.push_back(POIs[j].start_red);
+				poi_blue_values.push_back(POIs[j].start_blue);
+			}
+
+			//print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
+			if (POI_GENERATE){
+				static int only_once;
+				if (only_once == 0) { print_poi_all_values(pFILE5, poi_x_locations, poi_y_locations, poi_red_values, poi_blue_values); }
+				if (GENERATE_ONCE) { only_once++; }
+			}
+			/// END Create Landmarks
+
+			/// BGN Create Rovers
+			vector<rover> fidos(num_ROVERS);
+			//vector<rover>* pfidos = &fidos;
+			set_up_all_rovers(fidos);
+			/// END Create Rovers
+
+			cout << "Done with rover setup" << endl;
+
+			cout << "Preliminaries completed" << endl;
+			for (int gen = 0; gen < GENERATIONS; gen++)
+			{
+				if (gen % (GENERATIONS / 100) == 0){
+					//cout << "Beginning Generation " << gen << endl;}
+					cout << "Stat run " << stat_run << " is " << (double)gen / GENERATIONS * 100 << " % complete" << endl;
+				}
+
+				for (int r = 0; r < num_ROVERS; r++)
+				{
+					int SWAPS = 0;
+					for (int i = 0; i < SWAPS; i++)
+					{
+						int p1 = rand() % EVOPOP;
+						int p2 = rand() % EVOPOP;
+						int holder;
+
+						holder = fidos.at(r).selected.at(p1);
+						fidos.at(r).selected.at(p1) = fidos.at(r).selected.at(p2);
+						fidos.at(r).selected.at(p2) = holder;
+					}
+				}
+
+				for (int ev = 0; ev < EVOPOP; ev++)
+				{
+					clear_rewards(fidos);
+
+					for (int k = 0; k < num_ROVERS; k++)
+					{
+						fidos.at(k).replace();
+					}
+
+					for (int t = 0; t < TIMESTEPS; t++)
+					{
+						//if(t%100==0){
+						//cout << "." << flush;}
+
+						/// SENSE
+						//cout << "Sense!" << endl;
+						for (int r = 0; r < num_ROVERS; r++)
+						{
+							fidos.at(r).heading = 0;
+							fidos.at(r).sense(POIs, fidos);
+						}
+
+						/// DECIDE
+						// Run the neural network here.
+						//cout << "Decide!" << endl;
+						for (int r = 0; r < num_ROVERS; r++)
+						{
+							fidos.at(r).decide(ev);
+						}
+
+						/// ACT
+						//cout << "ACT!" << endl;
+						if (gen == GENERATIONS - 1 && STAT_RUN == 1 && t == 0){
+							//print_rover_locations(pFILE1, fidos);
+							store_timestep_locations(fidos);
+						}
+
+						for (int r = 0; r < num_ROVERS; r++)
+						{
+							fidos.at(r).act();
+						}
+
+						if (gen == GENERATIONS - 1 && STAT_RUN == 1){
+							//print_rover_locations(pFILE1, fidos);
+							store_timestep_locations(fidos);
+						}
+
+						/// REACT
+						//cout << "REACT!" << endl;
+						complete_react(fidos, POIs);
+					} /// END TIMESTEP LOOP
+					//cout << "COLLECT!" << endl;
+					collect(fidos, POIs, ev); // End of episode cleanup.
+				} /// END EVOPOP LOOP
+
+				print_red_blue_statrun(pFILE1, fidos, stat_run);
+
+				if (DO_CENTRALIZED_NSGA){
+					NSGA_2 C_NSGA;
+					C_NSGA.declare_NSGA_dimension(2);
+					C_NSGA.NSGA_reset();
+					int dex = 0;
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						for (int r = 0; r < num_ROVERS; r++){
+							vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+							C_NSGA.vector_input(afit, dex);
+							dex++;
+						}
+					}
+					C_NSGA.execute();
+					dex = 0;
+					for (int ev = 0; ev < EVOPOP; ev++) {
+						for (int r = 0; r < num_ROVERS; r++){
+							fidos.at(r).population.at(ev).set_fitness(-C_NSGA.NSGA_member_fitness(dex));
+							dex++;
+						}
+					}
+				}
+
+				if (DO_DISTRIBUTED_NSGA){
+					vector<NSGA_2> dis_NSGA;
+					/// For each rover, create an NSGA calculator.
+					for (int r = 0; r < num_ROVERS; r++){
+						NSGA_2 N;
+						N.declare_NSGA_dimension(2);
+						N.NSGA_reset();
+						dis_NSGA.push_back(N);
+					}
+					/// For each rover, input all fitnesses into the right NSGA calculator.
+					for (int r = 0; r < num_ROVERS; r++){
+						for (int ev = 0; ev < EVOPOP; ev++) {
+							vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+							dis_NSGA.at(r).vector_input(afit, ev);
+						}
+						dis_NSGA.at(r).execute();
+						for (int ev = 0; ev < EVOPOP; ev++) {
+							fidos.at(r).population.at(ev).set_fitness(-dis_NSGA.at(r).NSGA_member_fitness(ev));
+						}
+					}
+				}
+
+				//// D OF NSGA DISTRIBUTED DOESN'T WORKKKK!!!!!!!!
+				if (DO_D_OF_NSGA_DISTRIBUTED){
+					for (int r = 0; r < num_ROVERS; r++){
+						/// Preliminaries.
+						vector<double> Gs;
+						vector<double> Gzmis;
+						vector<double> Ds;
+						/// Calculate G for all population members.
+						NSGA_2 G;
+						G.declare_NSGA_dimension(2);
+						G.NSGA_reset();
+						for (int ev = 0; ev < EVOPOP; ev++) {
+							vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+							vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
+							G.vector_input(afit, ev);
+						}
+						G.execute();
+						for (int ev = 0; ev < EVOPOP; ev++){
+							Gs.push_back(-G.NSGA_member_fitness(ev));
+						}
+						/// Calculate gzmi for all population members.
+						for (int ev = 0; ev < EVOPOP; ev++){
+							NSGA_2 gzmi;
+							gzmi.declare_NSGA_dimension(2);
+							gzmi.NSGA_reset();
+							for (int ev2 = 0; ev2 < EVOPOP; ev2++){
+								vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+								vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
+								if (ev2 == ev){
+									gzmi.vector_input(gzmifit, ev);
+								}
+								else{
+									gzmi.vector_input(afit, ev);
+								}
+							}
+							gzmi.execute();
+							for (int ev2 = 0; ev2 < EVOPOP; ev2++){
+								Gzmis.push_back(-gzmi.NSGA_member_fitness(ev2));
+							}
+						}
+						/// Calculate D for all population members
+						for (int ev = 0; ev < EVOPOP; ev++){
+							Ds.push_back(Gs.at(ev) - Gzmis.at(ev));
+						}
+					}
+				} /// END DO_D_OF_NSGA_DISTRIBUTED
+
+				/*
+				SPEA_2 SPEA;
+
+				if (DO_SPEA){
+				SPEA.vector_input(MO, a);
+				}
+
+				if (DO_SPEA){
+				for (int a = 0; a<pVA->size(); a++){
+				vector<double> MO;
+				MO.push_back(pVA->at(a).get_f1());
+				MO.push_back(pVA->at(a).get_f2());
+				SPEA.vector_input(MO, a);
+				SPEA.take_agent(pVA->at(a), a);
+				}
+
+				vector<int> survivors;
+				vector<int>* pS = &survivors;
+				SPEA.execute(pS);
+
+				pVA->clear();
+				for (int i = 0; i< pS->size(); i++){
+				int el = pS->at(i);
+				pVA->push_back(SPEA.archive.at(el).agent);
+				pVA->back().mutate();
+				}
+				}
+				*/
+
+				if (FITNESS_FILE_WATCH){
+					//print_fitnesses(pFILE3, fidos, gen);
+				}
+
+				for (int r = 0; r < num_ROVERS; r++)
+				{
+					vector<gaussian_evo_agent>* pVNN = &fidos.at(r).population;
+					vector<double> fit = kill_lowest_performers(pVNN, r, fidos);
+					expand_population(pVNN, r, fit);
+				}
+
+				for (int r = 0; r < num_ROVERS; r++)
+				{
+					for (int i = 0; i < EVOPOP; i++)
+					{
+						fidos.at(r).population.at(i).clean();
+					}
+				}
+
+			} /// END GENERATION LOOP.
 		}
-
-		print_poi_locations(pFILE2, poi_x_locations, poi_y_locations);
-		if(POI_GENERATE){
-			static int only_once;
-			if (only_once == 0) { print_poi_all_values(pFILE5, poi_x_locations, poi_y_locations, poi_red_values, poi_blue_values); }
-			if (GENERATE_ONCE) { only_once++; }
-        }
-		/// END Create Landmarks
-
-		/// BGN Create Rovers
-		vector<rover> fidos(num_ROVERS);
-		//vector<rover>* pfidos = &fidos;
-        set_up_all_rovers(fidos);
-		/// END Create Rovers
-
-		cout << "Done with rover setup" << endl;
-
-		cout << "Preliminaries completed" << endl;
-		for (int gen = 0; gen < GENERATIONS; gen++)
-		{
-            if(gen % (GENERATIONS/100) == 0){
-                //cout << "Beginning Generation " << gen << endl;}
-                cout << "Stat run " << stat_run << " is " << (double)gen/GENERATIONS*100  << " % complete" << endl;
-            }
-            
-			for (int r = 0; r < num_ROVERS; r++)
-			{
-				int SWAPS = 0;
-				for (int i = 0; i < SWAPS; i++)
-				{
-					int p1 = rand() % EVOPOP;
-					int p2 = rand() % EVOPOP;
-					int holder;
-
-					holder = fidos.at(r).selected.at(p1);
-					fidos.at(r).selected.at(p1) = fidos.at(r).selected.at(p2);
-					fidos.at(r).selected.at(p2) = holder;
-				}
-			}
-
-			for (int ev = 0; ev < EVOPOP; ev++)
-			{
-				clear_rewards(fidos);
-
-				for (int k = 0; k < num_ROVERS; k++)
-				{
-					fidos.at(k).replace();
-				}
-
-				for (int t = 0; t < TIMESTEPS; t++)
-				{
-					//if(t%100==0){
-					//cout << "." << flush;}
-
-					/// SENSE
-					//cout << "Sense!" << endl;
-					for (int r = 0; r < num_ROVERS; r++)
-					{
-						fidos.at(r).heading = 0;
-						fidos.at(r).sense(POIs, fidos);
-					}
-
-					/// DECIDE
-					// Run the neural network here.
-					//cout << "Decide!" << endl;
-					for (int r = 0; r < num_ROVERS; r++)
-					{
-						fidos.at(r).decide(ev);
-					}
-
-					/// ACT
-					//cout << "ACT!" << endl;
-					if (gen == GENERATIONS - 1 && STAT_RUN == 1 && t==0){
-						print_rover_locations(pFILE1, fidos);
-						store_timestep_locations(fidos);
-					}
-
-					for (int r = 0; r < num_ROVERS; r++)
-					{
-						fidos.at(r).act();
-					}
-
-					if (gen == GENERATIONS - 1 && STAT_RUN == 1){
-						print_rover_locations(pFILE1, fidos);
-						store_timestep_locations(fidos);
-					}
-
-					/// REACT
-                    //cout << "REACT!" << endl;
-                    complete_react(fidos, POIs);
-				} /// END TIMESTEP LOOP
-                //cout << "COLLECT!" << endl;
-                collect(fidos, POIs, ev); // End of episode cleanup.
-			} /// END EVOPOP LOOP
-			
-			print_red_blue_statrun(pFILE4, fidos, stat_run);
-            
-            if (DO_CENTRALIZED_NSGA){
-                NSGA_2 C_NSGA;
-                C_NSGA.declare_NSGA_dimension(2);
-                C_NSGA.NSGA_reset();
-                int dex=0;
-                for (int ev = 0; ev < EVOPOP; ev++) {
-                    for(int r=0; r<num_ROVERS; r++){
-                    vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-                    C_NSGA.vector_input(afit, dex);
-                    dex++;
-                    }
-                }
-                C_NSGA.execute();
-                dex=0;
-                for (int ev = 0; ev < EVOPOP; ev++) {
-                    for(int r=0; r<num_ROVERS; r++){
-                    fidos.at(r).population.at(ev).set_fitness(-C_NSGA.NSGA_member_fitness(dex));
-                    dex++;
-                    }
-                }
-            }
-            
-            if(DO_DISTRIBUTED_NSGA){
-                vector<NSGA_2> dis_NSGA;
-                /// For each rover, create an NSGA calculator.
-                for(int r=0; r<num_ROVERS; r++){
-                    NSGA_2 N;
-                    N.declare_NSGA_dimension(2);
-                    N.NSGA_reset();
-                    dis_NSGA.push_back(N);
-                }
-                /// For each rover, input all fitnesses into the right NSGA calculator.
-                for(int r=0; r<num_ROVERS; r++){
-                    for (int ev = 0; ev < EVOPOP; ev++) {
-                    vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-                    dis_NSGA.at(r).vector_input(afit,ev);
-                    }
-                    dis_NSGA.at(r).execute();
-                    for (int ev=0; ev < EVOPOP; ev++) {
-                        fidos.at(r).population.at(ev).set_fitness(-dis_NSGA.at(r).NSGA_member_fitness(ev));
-                    }
-                }
-            }
-            
-            if(DO_D_OF_NSGA_DISTRIBUTED){
-                for(int r=0; r<num_ROVERS; r++){
-                    /// Preliminaries.
-                    vector<double> Gs;
-                    vector<double> Gzmis;
-                    vector<double> Ds;
-                    /// Calculate G for all population members.
-                    NSGA_2 G;
-                    G.declare_NSGA_dimension(2);
-                    G.NSGA_reset();
-                    for (int ev = 0; ev < EVOPOP; ev++) {
-                        vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-                        vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
-                        G.vector_input(afit,ev);
-                    }
-                    G.execute();
-                    for(int ev=0; ev< EVOPOP; ev++){
-                        Gs.push_back(-G.NSGA_member_fitness(ev));
-                    }
-                    /// Calculate gzmi for all population members.
-                    for(int ev=0; ev<EVOPOP; ev++){
-                        NSGA_2 gzmi;
-                        gzmi.declare_NSGA_dimension(2);
-                        gzmi.NSGA_reset();
-                        for(int ev2=0; ev2<EVOPOP; ev2++){
-                            vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
-                            vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
-                            if(ev2==ev){
-                                gzmi.vector_input(gzmifit,ev);
-                            }
-                            else{
-                                gzmi.vector_input(afit,ev);
-                            }
-                        }
-                        gzmi.execute();
-                        for(int ev2=0; ev2<EVOPOP; ev2++){
-                            Gzmis.push_back(-gzmi.NSGA_member_fitness(ev2));
-                        }
-                    }
-                    /// Calculate D for all population members
-                    for(int ev=0; ev<EVOPOP; ev++){
-                        Ds.push_back(Gs.at(ev)-Gzmis.at(ev));
-                    }
-                }
-            } /// END DO_D_OF_NSGA_DISTRIBUTED
-            
-			/*
-			SPEA_2 SPEA;
-
-			if (DO_SPEA){
-			SPEA.vector_input(MO, a);
-			}
-
-			if (DO_SPEA){
-			for (int a = 0; a<pVA->size(); a++){
-			vector<double> MO;
-			MO.push_back(pVA->at(a).get_f1());
-			MO.push_back(pVA->at(a).get_f2());
-			SPEA.vector_input(MO, a);
-			SPEA.take_agent(pVA->at(a), a);
-			}
-
-			vector<int> survivors;
-			vector<int>* pS = &survivors;
-			SPEA.execute(pS);
-
-			pVA->clear();
-			for (int i = 0; i< pS->size(); i++){
-			int el = pS->at(i);
-			pVA->push_back(SPEA.archive.at(el).agent);
-			pVA->back().mutate();
-			}
-			}
-			*/
-
-            if(FITNESS_FILE_WATCH){
-			print_fitnesses(pFILE3, fidos, gen);
-            }
-            
-			for (int r = 0; r < num_ROVERS; r++)
-			{
-				vector<gaussian_evo_agent>* pVNN = &fidos.at(r).population;
-				vector<double> fit = kill_lowest_performers(pVNN, r, fidos);
-				expand_population(pVNN, r, fit);
-			}
-
-			for (int r = 0; r < num_ROVERS; r++)
-			{
-				for (int i = 0; i < EVOPOP; i++)
-				{
-					fidos.at(r).population.at(i).clean();
-				}
-			}
-
-		} /// END GENERATION LOOP.
+		fclose(pFILE1);
 	}
-	fclose(pFILE1);
-	fclose(pFILE2);
-	fclose(pFILE3);
-	fclose(pFILE4);
-    if(POI_GENERATE){
-	fclose(pFILE5);
-    }
+	//fclose(pFILE1);
+	//fclose(pFILE2);
+	//fclose(pFILE3);
+	if (POI_GENERATE){fclose(pFILE5);}
 	return 0;
 }
 
