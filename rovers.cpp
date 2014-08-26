@@ -8,6 +8,7 @@
 #include <fstream>
 #include <math.h>
 #include <vector>
+#include <deque>
 #include <ctime>
 #include <algorithm>
 #include <cstdlib>
@@ -24,7 +25,7 @@
 
 #include "gaussian_evo_agent.h"
 
-#define num_POI 200
+#define num_POI 50
 #define num_ROVERS 10
 #define DETERMINISTICALLY_PLACED 10
 
@@ -33,20 +34,19 @@
 #define ALWAYS 1 /// For pieces that need to run regardless of options.
 
 /// SELECT THE METHODS THAT YOU WOULD LIKE TO IMPLEMENT
-#define G_LC 1 //
-#define D_LC 1 //
-#define G_HV 1 //
-#define D_HV 1 //
-#define N_G_DIS 1 //
-#define N_D_DIS 1 //
-#define N_G_CEN 1 //
-#define N_D_CEN 1 //
-#define D_N_DIS 0 //
+#define G_LC 1 // Global Evaluations: Linear Combination
+#define D_LC 1 // Difference Evalutions: Linear Combination
+#define G_HV 1 // Global Evaluation: Dominated Hypervolume
+#define D_HV 1 // Difference Evaluation: Dominated Hypervolume
+#define N_G_DIS 1 // NSGA of Global Evaluations, Distributed
+#define N_D_DIS 1 // NSGA of Difference Evaluations, Distributed
+#define N_G_CEN 0 // NSGA of Global Evaluations: Centralized
+#define N_D_CEN 0 // NSGA of Difference Evaluations: Centralized
+#define D_N_DIS 0 // Difference of NSGA calculations
 
 bool DO_LOCAL = false;
 bool DO_GLOBAL = false;
 bool DO_DIFFERENCE = false;
-
 bool DO_LC = false;
 bool DO_HV = false;
 
@@ -58,28 +58,28 @@ bool DO_DISTRIBUTED_SPEA = false;
 bool DO_D_OF_NSGA_DISTRIBUTED = false;
 
 #define TIMESTEPS 1
-#define GENERATIONS 50
-#define STAT_RUN 2
+#define GENERATIONS 100
+#define STAT_RUN 10
 
 #define FITNESS_FILE_WATCH 0
 #define ROVERWATCH 0
 #define ROVERWATCHDEX 0 // Index of rover to watch.
 #define MIN_OBS_DIST 1
-#define MAX_OBS_DIST 3
+#define MAX_OBS_DIST 300
 
 // NEURAL NETWORK PARAMETERS
 #define INPUTS 0
 #define HIDDEN 5
 #define OUTPUTS 2
-#define EVOPOP 20
+#define EVOPOP 100
 
 // POI setup toggles/values
 #define POI_GENERATE 1 // By itself, generates entirely random POIs once for each statistical run. Set to 0 to read in from file.
 #define GENERATE_ONCE 1 // Generates the POIs once, then uses file for all statistical runs // Requires POI_GENERATE = 1
 
 #define POI_GENERATE_RED_BLUE_SMALL 1 // Requires POI_GENERATE = 1 // Can be used with GENERATE_ONCE
-#define MAX_VALUES 0 // Random POI value between 0 and _VAL
-#define SET_VALUES 1 // Set POI value as _VAL
+#define MAX_VALUES 0 // Random POI value between 0 and _VAL (RED_VAL or BLUE_VAL)
+#define SET_VALUES 1 // Set POI value as _VAL (RED_VAL or BLUE_VAL)
 #define RED_VAL 10  // These values are the max of random values or
 #define BLUE_VAL 10 // what the values are set to.
 #define SMALL_VAL 5
@@ -780,6 +780,81 @@ void print_fitnesses(FILE *pFILE3, vector<rover>& fidos, int gen)
 	}
 }
 
+/// Assuming maximization
+void pareto_check(vector<double> coords, vector< vector<double> >& PFront){
+    /// <Is it dominated by any point in the Pareto front??>
+    /// For each Pareto point
+    for(int pt=0; pt<PFront.size(); pt++){
+        int counter=0;
+        for(int obj=0; obj<PFront.at(pt).size(); obj++){
+            /// If the pareto point scores higher on a criteria, increment counter
+            if(coords.at(obj) <= PFront.at(pt).at(obj)){
+                counter++;
+            }
+        }
+        if(counter==(PFront.at(pt).size())){
+            /// If the pareto point scored higher or equal on all criteria...
+            /// coords is dominated, and is not a Pareto point.
+            return;
+        }
+    }
+    /// <Does it dominate any points on the Pareto front?>
+    vector<int> eliminate;
+    for(int pt=0; pt<PFront.size(); pt++){
+        int counter=0;
+        for(int obj=0; obj<PFront.at(pt).size(); obj++){
+            /// If the new point scores higher than or equal to on a criteria, increment counter
+            if(coords.at(obj) >= PFront.at(pt).at(obj)){
+                counter++;
+            }
+        }
+        if(counter==(PFront.at(pt).size())){
+            /// If the new point scored higher or equal on all criteria
+            /// The "Pareto" point is dominated, and should be eliminated.
+            eliminate.push_back(pt);
+        }
+    }
+    /// <Eliminate dominated points on the Pareto Front>
+    for(int e=eliminate.size()-1; e>=0; e--){
+        /// We eliminate from end -> beginning so that the indices we calculated remain valid.
+        int spot = eliminate.at(e);
+        PFront.erase(PFront.begin()+spot);
+    }
+    /// <Add new point in correct spot of Pareto Front>
+    PFront.push_back(coords);
+}
+
+void print_rbs_single_stat_run(FILE* pFILE4, vector<vector<double> > PFront, int stat_run){
+    for(int i=0; i<PFront.size(); i++){
+        for(int j=0; j<PFront.at(i).size(); j++){
+            fprintf(pFILE4, "%.5f\t", PFront.at(i).at(j));
+        }
+        fprintf(pFILE4, "%d\n", stat_run+1);
+    }
+}
+
+/// Steps down amount of data to be written to file.
+void maintain_red_blue_statrun_pareto(FILE* PFILE, vector<rover>& fidos, int stat_run, bool last=false){
+    int i = 0;
+    static vector< vector<double> > pfront;
+    static int old_stat_run;
+    if(stat_run != old_stat_run){
+        print_rbs_single_stat_run(PFILE,pfront,old_stat_run);
+        pfront.clear();
+        pfront.reserve(200);
+    }
+    if(last==true){return;}
+    
+    vector<double> a;
+	for (int ev = 0; ev < EVOPOP; ev++){
+		a.push_back(fidos.at(i).population.at(ev).get_raw_global(0));
+        a.push_back(fidos.at(i).population.at(ev).get_raw_global(1));
+        pareto_check(a,pfront);
+        a.clear();
+	}
+    old_stat_run=stat_run;
+}
+
 void print_red_blue_statrun(FILE * pFILE4, vector<rover>& fidos, int stat_run)
 {
     //cout << "RBS: " << fidos.at(0).population.at(0).get_raw_objective(0) << "\t" << fidos.at(0).population.at(0).get_raw_objective(1) << endl;
@@ -971,7 +1046,8 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
                 //cout << "R! " << r << endl;
                 //cout << "DDR: " << fidos.at(r).global_red_chunks.size() << endl;
                 //cout << "DDB: " << fidos.at(r).global_blue_chunks.size() << endl;
-                
+                //cout << "GZMRCS: " << fidos.at(r).gzmi_red_chunks.size() << endl;
+                //cout << "GZMBCS: " << fidos.at(r).gzmi_blue_chunks.size() << endl;
 				double gzmired = accumulate(fidos.at(r).gzmi_red_chunks.begin(), fidos.at(r).gzmi_red_chunks.end(), 0.0);
 				double gzmiblue = accumulate(fidos.at(r).gzmi_blue_chunks.begin(), fidos.at(r).gzmi_blue_chunks.end(), 0.0);
                 double differencered = accumulate(fidos.at(r).difference_red_chunks.begin(),fidos.at(r).difference_red_chunks.end(),0.0);
@@ -1003,7 +1079,8 @@ void collect(vector<rover>& fidos, landmark* POIs, int ev){
 	if (DO_HV){
 		for (int r = 0; r < num_ROVERS; r++) {
 			double val = 0, redval = 0, blueval = 0;
-			int thisone = fidos.at(r).selected.at(ev);            redval = fidos.at(r).population.at(thisone).get_raw_objective(0);
+			int thisone = fidos.at(r).selected.at(ev);
+            redval = fidos.at(r).population.at(thisone).get_raw_objective(0);
             blueval = fidos.at(r).population.at(thisone).get_raw_objective(1);
 			val = blueval * redval;
 			fidos.at(r).population.at(thisone).set_fitness(val);
@@ -1223,7 +1300,7 @@ void select_method(int method){
 	}
 
 	if (method == 2){
-		cout << "GLOBAL AND HYPER VOLUME" << endl;
+		cout << "GLOBAL AND HYPERVOLUME" << endl;
 		DO_LOCAL = false;
 		DO_GLOBAL = true;
 		DO_DIFFERENCE = false;
@@ -1238,7 +1315,7 @@ void select_method(int method){
 	}
 
 	if (method == 3){
-		cout << "DIFFERENCE AND HYPER VOLUME" << endl;
+		cout << "DIFFERENCE AND HYPERVOLUME" << endl;
 		DO_LOCAL = false;
 		DO_GLOBAL = false;
 		DO_DIFFERENCE = true;
@@ -1334,6 +1411,16 @@ int main()
 	srand(time(NULL));
     cout << "RANDOM SEED: " << time(NULL) << endl;
     
+    bool repeated;
+    cout << "USER: Is this a repeated run (1,0)?" << endl;
+    cin >> repeated;
+    
+    int previous_stat_runs=0;
+    if(repeated){
+        cout << "USER: Start with what stat run number?" << endl;
+        cin >> previous_stat_runs;
+    }
+    
     if(TELEPORTATION){cout << "TELEPORTATION RUN" << endl;}
 
 	//FILE * pFILE1 = fopen("rover_locations2.txt", "w");
@@ -1352,15 +1439,24 @@ int main()
 		int method = methods.at(m);
 		select_method(method);
 		FILE * pFILE1 = NULL;
-		if (method == 0){ pFILE1 = fopen("RBS_G_LC.txt", "w"); }
-		if (method == 1){ pFILE1 = fopen("RBS_D_LC.txt", "w"); }
-		if (method == 2){ pFILE1 = fopen("RBS_G_HV.txt", "w"); }
-		if (method == 3){ pFILE1 = fopen("RBS_D_HV.txt", "w"); }
-		if (method == 4){ pFILE1 = fopen("RBS_N_G_DIS.txt", "w"); }
-		if (method == 5){ pFILE1 = fopen("RBS_N_D_DIS.txt", "w"); }
-		if (method == 6){ pFILE1 = fopen("RBS_N_G_CEN.txt", "w"); }
-		if (method == 7){ pFILE1 = fopen("RBS_N_D_CEN.txt", "w"); }
-		if (method == 8){ pFILE1 = fopen("RBS_D_N_DIS.txt", "w"); }
+        
+        char filename[30];
+        char rwa[3];
+        
+        if(repeated){strcpy(rwa,"a");}
+        else{strcpy(rwa,"w");}
+        
+        if(method==0){strcpy (filename,"RBS_G_LC.txt");}
+        if(method==1){strcpy (filename,"RBS_D_LC.txt");}
+        if(method==2){strcpy (filename,"RBS_G_HV.txt");}
+        if(method==3){strcpy (filename,"RBS_D_HV.txt");}
+        if(method==4){strcpy (filename,"RBS_N_G_DIS.txt");}
+        if(method==5){strcpy (filename,"RBS_N_D_DIS.txt");}
+        if(method==6){strcpy (filename,"RBS_N_G_CEN.txt");}
+        if(method==7){strcpy (filename,"RBS_N_D_CEN.txt");}
+        if(method==8){strcpy (filename,"RBS_D_N_DIS.txt");}
+        
+        pFILE1 = fopen(filename, rwa);
 
 		for (int stat_run = 0; stat_run < STAT_RUN; stat_run++)
 		{
@@ -1475,7 +1571,8 @@ int main()
 					collect(fidos, POIs, ev); // End of episode cleanup.
 				} /// END EVOPOP LOOP
 
-				print_red_blue_statrun(pFILE1, fidos, stat_run);
+				//print_red_blue_statrun(pFILE1, fidos, stat_run);
+                maintain_red_blue_statrun_pareto(pFILE1, fidos, stat_run+previous_stat_runs);
 
 				if (DO_CENTRALIZED_NSGA){
 					NSGA_2 C_NSGA;
@@ -1547,13 +1644,13 @@ int main()
 							gzmi.declare_NSGA_dimension(2);
 							gzmi.NSGA_reset();
 							for (int ev2 = 0; ev2 < EVOPOP; ev2++){
-								vector<double> afit = fidos.at(r).population.at(ev).get_raw_objectives();
+								vector<double> afit = fidos.at(r).population.at(ev).get_raw_globals();
 								vector<double> gzmifit = fidos.at(r).population.at(ev).get_raw_gzmis();
 								if (ev2 == ev){
-									gzmi.vector_input(gzmifit, ev);
+									gzmi.vector_input(gzmifit, ev2);
 								}
 								else{
-									gzmi.vector_input(afit, ev);
+									gzmi.vector_input(afit, ev2);
 								}
 							}
 							gzmi.execute();
@@ -1618,6 +1715,9 @@ int main()
 
 			} /// END GENERATION LOOP.
 		}
+        /// Create a pseudo rover to allow us to get the last stat run's pareto front from MRBSP.
+        vector<rover> pseudo(1);
+        maintain_red_blue_statrun_pareto(pFILE1, pseudo, -1, true);
 		fclose(pFILE1);
 	}
 	//fclose(pFILE1);

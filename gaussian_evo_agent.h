@@ -107,6 +107,7 @@ public:
     void clear_raw_objectives();
     vector<double> get_raw_objectives();
     vector<double> get_raw_gzmis();
+    vector<double> get_raw_globals();
 };
 
 vector<double> gaussian_evo_agent::get_raw_objectives(){
@@ -115,6 +116,10 @@ vector<double> gaussian_evo_agent::get_raw_objectives(){
 
 vector<double> gaussian_evo_agent::get_raw_gzmis(){
     return raw_gzmis;
+}
+
+vector<double> gaussian_evo_agent::get_raw_globals(){
+    return raw_globals;
 }
 
 double gaussian_evo_agent::get_raw_objective(int a){

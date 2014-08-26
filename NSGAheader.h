@@ -46,11 +46,6 @@ bool sort_nsga_fitness(NSGA_mem const &x, NSGA_mem const &y)
 	return x.final_fitness < y.final_fitness;
 }
 
-//bool SortByDim(NSGA_mem* left, NSGA_mem* right, int dim) {
-//        int al = left->coordinates.at(dim), ar = right->coordinates.at(dim);
-//        return (al < ar);
-//}
-
 class NSGA_2 {
 private:
 public:
@@ -240,6 +235,8 @@ void NSGA_2::find_tier() {
 		}
         
 		/// of remaining points, find the NDS.
+        if(NSGA_DEBUG > 1){ cout << "Remaining Indexes Size: " << remaining_indexes.size() << endl;}
+        if(NSGA_DEBUG > 1){ cout << "Remaining Coords Size: " << remaining_coords.size() << endl;}
 		for (int i = 0; i<remaining_indexes.size(); i++){
 			for (int j = 0; j<remaining_indexes.size(); j++){
 				if (i == j){ continue; }
@@ -285,6 +282,7 @@ void NSGA_2::find_tier() {
 
 bool NSGA_2::first_dominates_second(vector<double> a, vector<double> b){
 	bool adomb = true;
+    if(NSGA_DEBUG >1){cout << "A,B Size: " << a.size() << "\t" << b.size() << endl;}
 	for (int i = 0; i<a.size(); i++){
 		if (a.at(i) < b.at(i)){
 			adomb = false;
