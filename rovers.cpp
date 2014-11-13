@@ -34,15 +34,15 @@
 #define ALWAYS 1 /// For pieces that need to run regardless of options.
 
 /// SELECT THE METHODS THAT YOU WOULD LIKE TO IMPLEMENT
-#define G_LC 1 // Global Evaluations: Linear Combination
-#define D_LC 1 // Difference Evalutions: Linear Combination
-#define G_HV 1 // Global Evaluation: Dominated Hypervolume
-#define D_HV 1 // Difference Evaluation: Dominated Hypervolume
-#define N_G_DIS 1 // NSGA of Global Evaluations, Distributed
-#define N_D_DIS 1 // NSGA of Difference Evaluations, Distributed
+#define G_LC 0 // Global Evaluations: Linear Combination
+#define D_LC 0 // Difference Evalutions: Linear Combination
+#define G_HV 0 // Global Evaluation: Dominated Hypervolume
+#define D_HV 0 // Difference Evaluation: Dominated Hypervolume
+#define N_G_DIS 0 // NSGA of Global Evaluations, Distributed
+#define N_D_DIS 0 // NSGA of Difference Evaluations, Distributed
 #define N_G_CEN 0 // NSGA of Global Evaluations: Centralized
 #define N_D_CEN 0 // NSGA of Difference Evaluations: Centralized
-#define D_N_DIS 0 // Difference of NSGA calculations
+#define D_N_DIS 1 // Difference of NSGA calculations
 
 bool DO_LOCAL = false;
 bool DO_GLOBAL = false;
@@ -58,7 +58,7 @@ bool DO_DISTRIBUTED_SPEA = false;
 bool DO_D_OF_NSGA_DISTRIBUTED = false;
 
 #define TIMESTEPS 1
-#define GENERATIONS 100
+#define GENERATIONS 1000
 #define STAT_RUN 10
 
 #define FITNESS_FILE_WATCH 0
@@ -74,8 +74,8 @@ bool DO_D_OF_NSGA_DISTRIBUTED = false;
 #define EVOPOP 100
 
 // POI setup toggles/values
-#define POI_GENERATE 1 // By itself, generates entirely random POIs once for each statistical run. Set to 0 to read in from file.
-#define GENERATE_ONCE 1 // Generates the POIs once, then uses file for all statistical runs // Requires POI_GENERATE = 1
+#define POI_GENERATE 0 // By itself, generates entirely random POIs once for each statistical run. Set to 0 to read in from file.
+#define GENERATE_ONCE 0 // Generates the POIs once, then uses file for all statistical runs // Requires POI_GENERATE = 1
 
 #define POI_GENERATE_RED_BLUE_SMALL 1 // Requires POI_GENERATE = 1 // Can be used with GENERATE_ONCE
 #define MAX_VALUES 0 // Random POI value between 0 and _VAL (RED_VAL or BLUE_VAL)
@@ -831,6 +831,7 @@ void print_rbs_single_stat_run(FILE* pFILE4, vector<vector<double> > PFront, int
         }
         fprintf(pFILE4, "%d\n", stat_run+1);
     }
+    fflush(pFILE4);
 }
 
 /// Steps down amount of data to be written to file.
@@ -1769,13 +1770,26 @@ void expand_population(vector<gaussian_evo_agent>* pNN, int r, vector<double> fi
 	/// create new neural networks like the survivors.
 	for (int i = 0; i<EVOPOP / 2; i++){
 		int spot; // the index of the one we're replicating.
-		if (LYRAND < 0.8) {/// THIS ONE SELECTS THE BEST TO REPLICATE
-			spot = max_element(fitnesses.begin(), fitnesses.end()) - fitnesses.begin();
-		}
-		else {
+        int spot1, spot2;
+        spot1 = rand()%pNN->size();
+        spot2 = rand()%pNN->size();
+        double fit1, fit2;
+        fit1 = fitnesses.at(spot1);
+        fit2 = fitnesses.at(spot2);
+        if(fit1 > fit2){
+            spot = spot1;
+        }
+        else{
+            spot = spot2;
+        }
+        
+		//if (LYRAND < 0.8) {/// THIS ONE SELECTS THE BEST TO REPLICATE
+		//	spot = max_element(fitnesses.begin(), fitnesses.end()) - fitnesses.begin();
+		//}
+		//else {
 			/// THIS ONE SELECTS A RANDOM SURVIVOR TO REPLICATE.
-			spot = rand() % pNN->size();
-		}
+		//	spot = rand() % pNN->size();
+		//}
 		pNN->push_back(pNN->at(spot));
 		pNN->back().mutate();
 	}
